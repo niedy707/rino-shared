@@ -1,0 +1,6 @@
+# AHP (AI Handshake Protocol)
+.ai_journal.md
+.claudeprompt
+
+node_modules/
+.DS_Store
