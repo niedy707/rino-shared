@@ -38,6 +38,26 @@ export function normalizeForMatch(name) {
         .trim();
 }
 /**
+ * KANONİK vesikalık/not ANAHTAR normalizasyonu — mobil-panel lib/names
+ * normalizeName ile BİREBİR. `patient_thumbs` (m:), `drpanel:muayene_notu` (m:)
+ * gibi Redis anahtarlarını üreten HER yer (thumbs generator, finder_notes_sync,
+ * panel) BUNU kullanmalı; kopya-tanım sessiz anahtar-tutmama riski doğurur (S-2).
+ *
+ * normalizeForMatch'ten FARKI: İ/I açık işlenir, aksan NFD ile soyulur
+ * (yabancı ad korunur), ve harf-dışı karakter BOŞLUĞA çevrilir (silinmez).
+ *
+ * @example normalizeMobil("İrem Öz-Çelik") // → "irem oz celik"
+ */
+export function normalizeMobil(name) {
+    return (name || '')
+        .replace(/İ/g, 'i').replace(/I/g, 'ı')
+        .toLowerCase()
+        .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')
+        .replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+        .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+/**
  * Baş harfleri büyütme (Türkçe locale).
  *
  * @example

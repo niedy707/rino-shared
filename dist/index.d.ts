@@ -28,6 +28,18 @@
  */
 export declare function normalizeForMatch(name: string): string;
 /**
+ * KANONİK vesikalık/not ANAHTAR normalizasyonu — mobil-panel lib/names
+ * normalizeName ile BİREBİR. `patient_thumbs` (m:), `drpanel:muayene_notu` (m:)
+ * gibi Redis anahtarlarını üreten HER yer (thumbs generator, finder_notes_sync,
+ * panel) BUNU kullanmalı; kopya-tanım sessiz anahtar-tutmama riski doğurur (S-2).
+ *
+ * normalizeForMatch'ten FARKI: İ/I açık işlenir, aksan NFD ile soyulur
+ * (yabancı ad korunur), ve harf-dışı karakter BOŞLUĞA çevrilir (silinmez).
+ *
+ * @example normalizeMobil("İrem Öz-Çelik") // → "irem oz celik"
+ */
+export declare function normalizeMobil(name: string): string;
+/**
  * Baş harfleri büyütme (Türkçe locale).
  *
  * @example
