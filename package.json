@@ -13,9 +13,13 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "guard": "node scripts/guard-duplicates.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.4"
   }
 }

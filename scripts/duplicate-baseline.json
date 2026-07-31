@@ -1,0 +1,8 @@
+{
+  "_not": "Elle düzenleme; `npm run guard -- --update` kullan.",
+  "counts": {
+    "calculateControlLabel": 1,
+    "normalizeMobil": 4,
+    "daysBetweenDates": 1
+  }
+}

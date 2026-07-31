@@ -4,3 +4,12 @@
 
 node_modules/
 .DS_Store
+
+# Ortam değişkenleri — bu repo PUBLIC, sır ASLA girmemeli
+.env
+.env.*
+!.env.example
+
+# Test/araç çıktıları
+coverage/
+*.log
