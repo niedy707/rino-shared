@@ -30,6 +30,19 @@ REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 #  olduğu için başka repodaki yeni kopya burada da commit'i kilitliyordu.)
 OFFENDERS=$(echo "$OUT" | sed -n 's/^YENİ-KOPYA-REPOLAR: //p')
 
+# Bekçi mükerrer DIŞI bir sebeple patladıysa (bozuk/eski baseline, script hatası)
+# o satır hiç basılmaz. Bu durumda AÇIK KALMA — sessizce devre dışı kalmış bir
+# kapı, hiç olmayan kapıdan beterdir.
+if [ -z "$OFFENDERS" ]; then
+  echo "$OUT"
+  echo
+  echo "⛔ Commit durduruldu: bekçi çalışamadı (mükerrer tanım sorunu DEĞİL)."
+  echo "   Muhtemel sebep: taban çizgisi eski biçimde ya da script hatası."
+  echo "   Onar:         node $GUARD"
+  echo "   Atlamak için: git commit --no-verify"
+  exit 1
+fi
+
 if echo " $OFFENDERS " | grep -q " ${REPO_NAME} "; then
   echo "$OUT"
   echo

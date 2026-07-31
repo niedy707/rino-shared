@@ -2,8 +2,8 @@
 #
 # Bekçi pre-commit hook'unu kardeş repolara kurar.
 #
-# NEDEN core.hooksPath KULLANMIYOR: calendar-api ve takvim'de zaten bir
-# `pre-push` hook'u var (Vercel deploy izleyicisi). core.hooksPath ayarlamak
+# NEDEN core.hooksPath KULLANMIYOR: calendar-api, takvim ve asistan-panel'de
+# zaten bir `pre-push` hook'u var (Vercel deploy izleyicisi). core.hooksPath ayarlamak
 # .git/hooks'u TAMAMEN devre dışı bırakır ve o hook'lar sessizce çalışmaz olur.
 # Bu yüzden doğrudan .git/hooks/pre-commit'e kopyalıyoruz — mevcut hook'lara
 # dokunmadan.

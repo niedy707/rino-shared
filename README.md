@@ -48,6 +48,24 @@ buraya taşımak sahte bir birlik kurar ve birinin ekranını sessizce bozar.
 
 ---
 
+## ✅ v1.2.1 — CJS tüketicileri onarıldı
+
+`exports` haritasında yalnız `import` + `types` koşulu vardı, `require`/`default`
+yoktu. `calendar-api`'de `"type": "module"` olmadığı için `ts-node`'un CommonJS
+çıktısı paketi çözemiyordu:
+
+```
+Error: No "exports" main defined in .../@rino/shared/package.json
+```
+
+Bu, `npm run data-sync` ve `npm run archive`'ı **kırıyordu** — ve paketin ilk
+commit'inden (`68b5c31`, 2026-07-13) beri böyleydi, kimse denememişti.
+
+Düzeltme: `"default": "./dist/main.js"`. Node 24 senkron ESM'i `require()`
+edebildiği için ayrı bir CJS build gerekmedi. ESM tarafı etkilenmedi.
+
+---
+
 ## ✅ v1.2.0 — ASCII-dışı harf düzeltmesi
 
 `normalizeMobil` artık önce `transliterate()` çağırıyor.
@@ -119,12 +137,19 @@ kullanıyor. `normalizeMobil` ekosistemde **tek tanım** (önce 4'tü).
 `finder-helper.mjs` bir launchd daemon'ı; paket çözümlemesi launchd bağlamında
 (cwd=`/`, mutlak yol, `/usr/local/bin/node`) çalıştırılarak doğrulandı.
 
-### Kiril haritası iki yerde
+### Kiril haritası beş yerde
 
-Buradaki `transliterate()` ile `calendar-api/src/lib/classification.ts`
-içindeki `transliterateCyrillic` **birebir aynı Kiril haritasını** kullanır.
-Ayrışırlarsa yazan ile okuyan farklı anahtar üretir. Uzun vadede calendar-api
-buradakini benimsemeli.
+Buradaki `transliterate()` dışında `transliterateCyrillic` adıyla **4 kopya** var:
+
+- `calendar-api/src/lib/classification.ts`
+- `clinic-sync/src/services/perop-media/lib/patients.ts`
+- `clinic-sync/src/services/hastanede/lib/patients.ts`
+- `mobil-panel/lib/names.ts`
+
+Beşi de **birebir aynı Kiril haritasını** kullanmalı — ayrışırlarsa yazan ile
+okuyan farklı `m:` anahtarı üretir. (2026-07-31 ölçümü: U+0400–U+052F aralığında
+304 kod noktası için fark **0**.) Bekçinin İZLENEN listesinde. Uzun vadede
+hepsi buradaki `transliterate()`'i benimsemeli.
 
 ### Ölçüm script'i ne yapar, ne yapmaz
 
@@ -166,23 +191,37 @@ artarsa hata verir.** Mevcut kopyaları silmeye zorlamaz — kanamayı durdurur.
 | | Fonksiyonlar | Yeni kopya çıkarsa |
 |---|---|---|
 | **SAHİPLENİLEN** | `calculateControlLabel` `normalizeMobil` `daysBetweenDates` `transliterate` | paketten import et |
-| **İZLENEN** | `normalizeName` `phoneLast10` `normalizePhone` `titleCase` `cleanDisplayName` `categorizeEvent` | pakette değil; mevcut bir tanımı kullan ya da kanonik bir yer seç |
+| **İZLENEN** | `normalizeName` `phoneLast10` `normalizePhone` `titleCase` `cleanDisplayName` `categorizeEvent` `transliterateCyrillic` | pakette değil; mevcut bir tanımı kullan ya da kanonik bir yer seç |
 
-İzlenenler ekosistemde zaten çok kopyalı (analiz: `normalizeName` 19,
-`phoneLast10` 10, …) ve bir kısmı **kasıtlı ürün farkı** (`categorizeEvent`) —
-o yüzden "paketten import et" onlar için doğru tavsiye değil.
+İzlenenler ekosistemde zaten çok kopyalı ve bir kısmı **kasıtlı ürün farkı**
+(`categorizeEvent`) — o yüzden "paketten import et" onlar için doğru tavsiye
+değil. Güncel sayılar `scripts/duplicate-baseline.json`'da (burada tekrar
+edilmiyor; bayatlıyor).
 
-Yakaladığı tanım biçimleri: `function f(`, `const f =`, nesne-metodu kısayolu
-`f(a) {`, sınıf metodu, `f: function(…)`, `f: (a) => …`.
+**Sayım repo bazlıdır** (`byRepo`). Böylece hook "yeni kopya BENİM repomda mı?"
+sorusunu cevaplayabiliyor — global sayımla, takvim'e eklenen bir kopya
+calendar-api'de commit'i kilitliyordu. Satır numarası saklanmaz; kod kayması
+sahte "yeni kopya" üretmesin diye.
 
-**Commit anında çalışır.** `scripts/install-hooks.sh` her kardeş repoya bir
-`pre-commit` hook'u kurar. Hook, kopya BAŞKA bir repodaysa commit'i engellemez —
-yalnız uyarır. Bypass: `git commit --no-verify`.
+Yakaladığı tanım biçimleri: `function f(` · `const/let/var f =` ·
+nesne-metodu kısayolu `f(a) {` · sınıf metodu (`public`/`private`/`static`/
+`async` + jenerik `f<T>()` + dönüş tipi) · `f: function(…)` · `f: (a): T => …` ·
+`"f": function` (tırnaklı anahtar) · `exports.f = function` · sınıf-alanı ok
+fonksiyonu `private f = (s) => …`.
 
-> `core.hooksPath` bilinçli olarak KULLANILMIYOR: `calendar-api` ve `takvim`'de
-> Vercel deploy izleyicisi `pre-push` hook'ları var ve `core.hooksPath` onları
-> sessizce devre dışı bırakırdı. Hook doğrudan `.git/hooks/`'a kopyalanır —
-> yani sürümlenmez; repo yeniden klonlanırsa script tekrar çalıştırılmalı.
+Yorum ve string içindeki tanımlar **sayılmaz** — `// const f = …` bırakmak
+commit'i kilitlemez. Takma adlar (`const a = b`) da tanım sayılmaz.
+
+**Commit anında çalışır.** `scripts/install-hooks.sh` 6 repoya `pre-commit`
+kurar. Hook, kopya BAŞKA bir repodaysa engellemez — yalnız uyarır. Ama bekçi
+mükerrer DIŞI bir sebeple patlarsa (bozuk baseline, script hatası) **fail-closed**
+davranır: commit'i durdurur. Bypass: `git commit --no-verify`.
+
+> `core.hooksPath` bilinçli olarak KULLANILMIYOR: `calendar-api`, `takvim` ve
+> `asistan-panel`'de Vercel deploy izleyicisi `pre-push` hook'ları var ve
+> `core.hooksPath` onları sessizce devre dışı bırakırdı. Hook doğrudan
+> `.git/hooks/`'a kopyalanır — yani sürümlenmez; repo yeniden klonlanırsa
+> script tekrar çalıştırılmalı.
 
 ---
 
