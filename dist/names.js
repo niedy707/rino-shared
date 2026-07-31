@@ -53,6 +53,9 @@ export function transliterate(s) {
  *   yazan  → calendar-api/scripts/generate_patient_thumbs.mjs
  *   yazan  → clinic-sync/src/services/contacts-engine/finder_notes_sync.mjs
  *   okuyan → mobil-panel/lib/names.ts
+ *   okuyan → calendar-api/src/lib/patientFolder.ts
+ *   okuyan → calendar-api/scripts/finder-helper.mjs          (launchd daemon)
+ *   okuyan → calendar-api/scripts/kontrol_notlari_finder.mjs
  *
  * Dönüşüm:
  * - Türkçe İ/I açıkça ele alınır (locale tuzağından kaçınmak için)
