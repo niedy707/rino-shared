@@ -24,7 +24,8 @@ PROJECTS_ROOT="$(cd "$HERE/../.." && pwd)"
 if [ -n "${1:-}" ]; then
   TARGETS=("$1")
 else
-  TARGETS=(calendar-api clinic-sync takvim mobil-panel rino-shared)
+  # guard-duplicates.mjs SIBLINGS listesiyle aynı olmalı + rino-shared.
+  TARGETS=(calendar-api clinic-sync takvim asistan-panel mobil-panel rino-shared)
 fi
 
 for proj in "${TARGETS[@]}"; do

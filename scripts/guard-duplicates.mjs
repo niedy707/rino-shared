@@ -43,15 +43,16 @@ const OWNED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 't
  * farkı (categorizeEvent), bir kısmı yerel fork. Amaç yalnız KANAMAYI DURDURMAK:
  * sayı artarsa haber ver, mevcut kopyaları silmeye zorlama.
  */
-const WATCHED = ['normalizeName', 'phoneLast10', 'normalizePhone', 'titleCase', 'cleanDisplayName', 'categorizeEvent'];
+const WATCHED = ['normalizeName', 'phoneLast10', 'normalizePhone', 'titleCase', 'cleanDisplayName', 'categorizeEvent', 'transliterateCyrillic'];
 
 const GUARDED = [...OWNED, ...WATCHED];
 
 /**
- * NOT: calendar-api'de `transliterateCyrillic` adında AYRI (yalnız Kiril kapsayan)
- * bir kopya var — farklı isim olduğu için bu bekçi onu saymaz. İkisinin Kiril
- * haritası BİREBİR aynı tutulmalı; ayrışırlarsa yazan ile okuyan farklı anahtar
- * üretir. Uzun vadede calendar-api buradaki transliterate()'i benimsemeli.
+ * NOT: `transliterateCyrillic` ekosistemde 4 kopya (calendar-api/src/lib/classification.ts,
+ * mobil-panel/lib/names.ts, clinic-sync perop-media ve hastanede lib/patients.ts).
+ * Dördü de bu paketteki `transliterate()`'in Kiril haritasıyla BİREBİR aynı olmalı;
+ * ayrışırlarsa yazan ile okuyan farklı `m:` anahtarı üretir. Uzun vadede hepsi
+ * buradaki `transliterate()`'i benimsemeli — o yüzden İZLENEN listesinde.
  */
 
 const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'dist', 'coverage', 'worktrees', '_archive', 'arsiv', '.venv-photos']);
@@ -78,37 +79,58 @@ function walk(dir, out = []) {
  *   3. özellik ataması:  foo: function(…)  ·  foo: (a) => …  ·  foo: async (…) =>
  */
 function definitionPatterns(fn) {
+  const K = `["']?${fn}["']?`; // tırnaklı anahtar da sayılır: { "normalizeMobil": … }
   return [
+    // 1. bildirim
     new RegExp(`(?:export\\s+)?(?:async\\s+)?(?:function|const|let|var)\\s+${fn}\\b`),
-    new RegExp(`^\\s*(?:static\\s+)?(?:async\\s+)?${fn}\\s*\\([^)]*\\)\\s*\\{`),
-    new RegExp(`\\b${fn}\\s*:\\s*(?:async\\s*)?(?:function\\b|\\([^)]*\\)\\s*=>|[A-Za-z_$][\\w$]*\\s*=>)`),
+    // 2. nesne/sınıf metodu — erişim belirteci + static + async + dönüş tipi opsiyonel
+    new RegExp(`^\\s*(?:(?:public|private|protected|readonly)\\s+)*(?:static\\s+)?(?:async\\s+)?${K}\\s*\\([^)]*\\)\\s*(?::[^{;]+)?\\{`),
+    // 3. özellik ataması — f: function(…) · f: (a): T => · f: a =>
+    new RegExp(`${K}\\s*:\\s*(?:async\\s*)?(?:function\\b|\\([^)]*\\)\\s*(?::[^=]+)?=>|[A-Za-z_$][\\w$]*\\s*=>)`),
   ];
 }
 
 const roots = [REPO, ...SIBLINGS.map((p) => join(PROJECTS_ROOT, p))].filter(existsSync);
 const skipped = SIBLINGS.filter((p) => !existsSync(join(PROJECTS_ROOT, p)));
 
-const found = Object.fromEntries(GUARDED.map((fn) => [fn, []]));
+/**
+ * Sayım REPO BAZLI tutulur: { [repo]: { [fn]: adet } }.
+ *
+ * Neden global değil: hook, "yeni kopya BU repoda mı?" sorusunu cevaplayabilmeli.
+ * Global sayımla, takvim'e eklenen bir kopya calendar-api'de commit'i kilitliyordu
+ * (bekçi başarısız fonksiyonun TÜM konumlarını basıyor, hook da kendi repo adını
+ * o listede görüyordu). Repo bazlı sayım bunu kökten çözer.
+ *
+ * Satır numarası SAKLANMAZ — kod kaydığında sahte "yeni kopya" üretmesin diye.
+ */
+const repoOf = (file) => file.replace(PROJECTS_ROOT + '/', '').split('/')[0];
+
+const counts = {};   // repo → fn → adet
+const found = {};    // repo → fn → ["yol:satır", …]
 
 for (const root of roots) {
   for (const file of walk(root)) {
     let text;
     try { text = readFileSync(file, 'utf8'); } catch { continue; }
+    const repo = repoOf(file);
     for (const fn of GUARDED) {
       if (!text.includes(fn)) continue;
       const pats = definitionPatterns(fn);
       text.split('\n').forEach((line, i) => {
-        if (pats.some((re) => re.test(line))) found[fn].push(`${file.replace(PROJECTS_ROOT + '/', '')}:${i + 1}`);
+        if (!pats.some((re) => re.test(line))) return;
+        (counts[repo] ??= {})[fn] = ((counts[repo] ??= {})[fn] ?? 0) + 1;
+        ((found[repo] ??= {})[fn] ??= []).push(`${file.replace(PROJECTS_ROOT + '/', '')}:${i + 1}`);
       });
     }
   }
 }
 
-const counts = Object.fromEntries(GUARDED.map((fn) => [fn, found[fn].length]));
+const total = (c, fn) => Object.values(c).reduce((s, r) => s + (r[fn] ?? 0), 0);
 
 if (process.argv.includes('--update')) {
-  writeFileSync(BASELINE_PATH, JSON.stringify({ _not: 'Elle düzenleme; `npm run guard -- --update` kullan.', counts }, null, 2) + '\n');
-  console.log('Taban çizgisi güncellendi:', JSON.stringify(counts));
+  writeFileSync(BASELINE_PATH, JSON.stringify({ _not: 'Elle düzenleme; `npm run guard -- --update` kullan.', byRepo: counts }, null, 2) + '\n');
+  console.log('Taban çizgisi güncellendi (repo bazlı):');
+  for (const fn of GUARDED) console.log(`   ${fn}: ${total(counts, fn)}`);
   process.exit(0);
 }
 
@@ -117,17 +139,35 @@ if (!existsSync(BASELINE_PATH)) {
   process.exit(1);
 }
 
-const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')).counts;
+const parsed = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+if (!parsed.byRepo) {
+  console.error('Taban çizgisi ESKİ biçimde (global sayım). Yenile:');
+  console.error('  node scripts/guard-duplicates.mjs --update');
+  process.exit(1);
+}
+const baseline = parsed.byRepo;
+
 let failed = false;
 let improved = false;
+/** Hangi repolarda YENİ kopya var — hook bunu okur. */
+const offendingRepos = new Set();
 
 for (const fn of GUARDED) {
-  const now = counts[fn];
-  const was = baseline[fn] ?? 0;
-  if (now > was) {
+  const now = total(counts, fn);
+  const was = total(baseline, fn);
+
+  // Repo bazlı artış ara — global toplam aynı kalsa bile (biri artıp biri azalsa)
+  const grew = [...new Set([...Object.keys(counts), ...Object.keys(baseline)])]
+    .filter((r) => (counts[r]?.[fn] ?? 0) > (baseline[r]?.[fn] ?? 0));
+
+  if (grew.length) {
     failed = true;
+    grew.forEach((r) => offendingRepos.add(r));
     console.error(`\n❌ ${fn}: ${was} → ${now} (YENİ KOPYA)`);
-    for (const loc of found[fn]) console.error(`     ${loc}`);
+    for (const r of grew) {
+      console.error(`   ${r}: ${baseline[r]?.[fn] ?? 0} → ${counts[r][fn]}`);
+      for (const loc of found[r][fn]) console.error(`     ${loc}`);
+    }
     if (OWNED.includes(fn)) {
       console.error(`   → Yerel kopya yerine: import { ${fn} } from '@rino/shared'`);
     } else {
@@ -146,6 +186,8 @@ for (const fn of GUARDED) {
 if (skipped.length) console.log(`\n(atlanan kardeş proje: ${skipped.join(', ')})`);
 
 if (failed) {
+  // Hook bu satırı okuyup "benim repom mu?" diye bakar.
+  console.error(`\nYENİ-KOPYA-REPOLAR: ${[...offendingRepos].join(' ')}`);
   console.error('\nMükerrer tanım sayısı arttı. Kopyayı kaldır ya da bilinçliyse:');
   console.error('  node scripts/guard-duplicates.mjs --update\n');
   process.exit(1);

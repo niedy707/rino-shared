@@ -1,15 +1,36 @@
 {
   "_not": "Elle düzenleme; `npm run guard -- --update` kullan.",
-  "counts": {
-    "calculateControlLabel": 1,
-    "normalizeMobil": 1,
-    "daysBetweenDates": 1,
-    "transliterate": 1,
-    "normalizeName": 19,
-    "phoneLast10": 10,
-    "normalizePhone": 5,
-    "titleCase": 5,
-    "cleanDisplayName": 4,
-    "categorizeEvent": 4
+  "byRepo": {
+    "rino-shared": {
+      "calculateControlLabel": 1,
+      "daysBetweenDates": 1,
+      "normalizeMobil": 1,
+      "transliterate": 1
+    },
+    "calendar-api": {
+      "cleanDisplayName": 2,
+      "categorizeEvent": 3,
+      "normalizePhone": 2,
+      "phoneLast10": 2,
+      "normalizeName": 8,
+      "transliterateCyrillic": 1
+    },
+    "clinic-sync": {
+      "normalizeName": 8,
+      "phoneLast10": 8,
+      "normalizePhone": 3,
+      "titleCase": 5,
+      "transliterateCyrillic": 2
+    },
+    "takvim": {
+      "normalizeName": 1,
+      "cleanDisplayName": 1,
+      "categorizeEvent": 1
+    },
+    "mobil-panel": {
+      "normalizeName": 2,
+      "cleanDisplayName": 1,
+      "transliterateCyrillic": 1
+    }
   }
 }

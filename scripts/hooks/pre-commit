@@ -25,8 +25,12 @@ RC=$?
 
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 
-# Bulunan konumlar arasında BU repoya ait olan var mı?
-if echo "$OUT" | grep -qE "^ +${REPO_NAME}/"; then
+# Bekçi "YENİ-KOPYA-REPOLAR: a b c" satırı basar — yalnız SAYIsı ARTAN repolar.
+# (Önceden tüm konumlar taranıyordu; calendar-api'de zaten 19 normalizeName
+#  olduğu için başka repodaki yeni kopya burada da commit'i kilitliyordu.)
+OFFENDERS=$(echo "$OUT" | sed -n 's/^YENİ-KOPYA-REPOLAR: //p')
+
+if echo " $OFFENDERS " | grep -q " ${REPO_NAME} "; then
   echo "$OUT"
   echo
   echo "⛔ Commit durduruldu: bu repoda yeni mükerrer tanım var."

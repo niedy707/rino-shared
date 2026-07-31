@@ -139,18 +139,6 @@ doğal olarak hep 0 döner.
 **Yukarıdaki eski↔yeni karşılaştırmasını TEKRARLAMAZ** — o, yayın öncesi tek
 seferlik bir kapıydı ve iki fonksiyon sürümünü yan yana koşturmayı gerektirir.
 
-### `normalizeMobil`'in 3 yerel kopyası var
-
-`calendar-api` içinde aynı fonksiyonun üç kopyası daha duruyor ve **üçü de aynı
-hataya sahip**:
-
-- `scripts/finder-helper.mjs:69` (launchd daemon)
-- `scripts/kontrol_notlari_finder.mjs:92`
-- `src/lib/patientFolder.ts:31`
-
-Düzeltme yapılırsa dördü birden düzeltilmeli — yoksa yazan ile okuyan farklı
-anahtar üretir. `npm run guard` sayının artmasını engeller ama mevcut 3'ü silmez.
-
 ---
 
 ## Geliştirme

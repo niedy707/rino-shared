@@ -71,10 +71,14 @@ export function transliterate(s) {
  * çevriliyor. Öncesinde "Алекс Петков" → "" (boş) oluyordu ve Kiril isimli tüm
  * hastalar aynı `m:` anahtarına çakışıyordu.
  *
- * Mevcut veriye etkisi ÖLÇÜLDÜ: 1616 hasta + 1482 not + 200 vesikalık anahtarının
- * HİÇBİRİ değişmedi (saklanan isimlerde bu karakterler yok — calendar-api'nin
- * cleanDisplayName'i zaten Latin'e çeviriyordu). Kazanç okuma tarafında:
- * mobil-panel arama kutusuna "Алекс" yazan biri artık "Aleks Petkov"u buluyor.
+ * Mevcut veriye etkisi ÖLÇÜLDÜ (2026-07-31, yayın öncesi tek seferlik kapı):
+ * 1616 hasta adı karşılaştırıldı, anahtarı DEĞİŞEN 0; `patient_thumbs` ve
+ * `drpanel:muayene_notu` anahtarlarından öksüz kalan 0. Saklanan isimlerde bu
+ * karakterler yok — calendar-api'nin cleanDisplayName'i zaten Latin'e çeviriyordu.
+ * (Anahtar SAYILARI oynaktır; kanıt değeri taşıyan "değişen: 0" sonucudur.)
+ *
+ * Kazanç okuma tarafında: mobil-panel arama kutusuna "Алекс" yazan biri artık
+ * "Aleks Petkov"u buluyor.
  */
 export function normalizeMobil(name) {
     return transliterate((name || '').normalize('NFC'))
