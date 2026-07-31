@@ -29,8 +29,23 @@ const BASELINE_PATH = join(REPO, 'scripts', 'duplicate-baseline.json');
 /** Kardeş projeler — @rino/shared'ı tüketen ya da tüketmesi beklenen ağaçlar. */
 const SIBLINGS = ['calendar-api', 'clinic-sync', 'takvim', 'asistan-panel', 'mobil-panel'];
 
-/** Bu repo tarafından SAHİPLENİLEN fonksiyonlar. Yerel kopyası ARTMAMALI. */
-const GUARDED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 'transliterate'];
+/**
+ * SAHİPLENİLEN — bu paketin export ettiği fonksiyonlar.
+ * Yerel kopya ÇIKMAMALI; çözüm: paketten import et.
+ */
+const OWNED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 'transliterate'];
+
+/**
+ * İZLENEN — pakette DEĞİL ama ekosistemde çok kopyalı ve ayrışmış fonksiyonlar.
+ * 2026-07-31 analizinde ölçülen kopya sayıları: normalizeName 18, phoneLast10 11,
+ * titleCase 10, normalizePhone 6, cleanDisplayName 5, categorizeEvent 5.
+ * Bunlar için "paketten import et" DOĞRU TAVSİYE DEĞİL — bir kısmı kasıtlı ürün
+ * farkı (categorizeEvent), bir kısmı yerel fork. Amaç yalnız KANAMAYI DURDURMAK:
+ * sayı artarsa haber ver, mevcut kopyaları silmeye zorlama.
+ */
+const WATCHED = ['normalizeName', 'phoneLast10', 'normalizePhone', 'titleCase', 'cleanDisplayName', 'categorizeEvent'];
+
+const GUARDED = [...OWNED, ...WATCHED];
 
 /**
  * NOT: calendar-api'de `transliterateCyrillic` adında AYRI (yalnız Kiril kapsayan)
@@ -56,9 +71,18 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** `function foo(`, `const foo =`, `export function foo(` biçimlerini yakalar. */
-function definitionRegex(fn) {
-  return new RegExp(`(?:export\\s+)?(?:async\\s+)?(?:function|const|let|var)\\s+${fn}\\b`);
+/**
+ * Bir fonksiyonun TANIM biçimlerini yakalar (çağrılarını değil):
+ *   1. function foo( · const foo = · export async function foo(
+ *   2. nesne-metodu / sınıf metodu kısayolu:  foo(a, b) {
+ *   3. özellik ataması:  foo: function(…)  ·  foo: (a) => …  ·  foo: async (…) =>
+ */
+function definitionPatterns(fn) {
+  return [
+    new RegExp(`(?:export\\s+)?(?:async\\s+)?(?:function|const|let|var)\\s+${fn}\\b`),
+    new RegExp(`^\\s*(?:static\\s+)?(?:async\\s+)?${fn}\\s*\\([^)]*\\)\\s*\\{`),
+    new RegExp(`\\b${fn}\\s*:\\s*(?:async\\s*)?(?:function\\b|\\([^)]*\\)\\s*=>|[A-Za-z_$][\\w$]*\\s*=>)`),
+  ];
 }
 
 const roots = [REPO, ...SIBLINGS.map((p) => join(PROJECTS_ROOT, p))].filter(existsSync);
@@ -72,9 +96,9 @@ for (const root of roots) {
     try { text = readFileSync(file, 'utf8'); } catch { continue; }
     for (const fn of GUARDED) {
       if (!text.includes(fn)) continue;
-      const re = definitionRegex(fn);
+      const pats = definitionPatterns(fn);
       text.split('\n').forEach((line, i) => {
-        if (re.test(line)) found[fn].push(`${file.replace(PROJECTS_ROOT + '/', '')}:${i + 1}`);
+        if (pats.some((re) => re.test(line))) found[fn].push(`${file.replace(PROJECTS_ROOT + '/', '')}:${i + 1}`);
       });
     }
   }
@@ -104,7 +128,13 @@ for (const fn of GUARDED) {
     failed = true;
     console.error(`\n❌ ${fn}: ${was} → ${now} (YENİ KOPYA)`);
     for (const loc of found[fn]) console.error(`     ${loc}`);
-    console.error(`   → Yerel kopya yerine: import { ${fn} } from '@rino/shared'`);
+    if (OWNED.includes(fn)) {
+      console.error(`   → Yerel kopya yerine: import { ${fn} } from '@rino/shared'`);
+    } else {
+      console.error(`   → Bu fonksiyon pakette DEĞİL ama ekosistemde zaten çok kopyalı.`);
+      console.error(`     Yeni kopya ekleme: mevcut bir tanımı import et ya da kanonik`);
+      console.error(`     bir yer seçip oraya taşı. Kasıtlıysa taban çizgisini güncelle.`);
+    }
   } else if (now < was) {
     improved = true;
     console.log(`✅ ${fn}: ${was} → ${now} (kopya azaldı)`);

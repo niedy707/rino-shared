@@ -2,8 +2,14 @@
   "_not": "Elle düzenleme; `npm run guard -- --update` kullan.",
   "counts": {
     "calculateControlLabel": 1,
-    "normalizeMobil": 4,
+    "normalizeMobil": 1,
     "daysBetweenDates": 1,
-    "transliterate": 1
+    "transliterate": 1,
+    "normalizeName": 19,
+    "phoneLast10": 10,
+    "normalizePhone": 5,
+    "titleCase": 5,
+    "cleanDisplayName": 4,
+    "categorizeEvent": 4
   }
 }

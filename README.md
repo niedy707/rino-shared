@@ -92,35 +92,32 @@ Saklanan isimlerin hiçbirinde bu karakterler yok, çünkü `calendar-api`'nin
 yazılıyor ve `normalizeMobil`'den geçiyor. Artık "Алекс" aratan biri,
 `Aleks Petkov` olarak kayıtlı hastayı buluyor.
 
-## 🔴 AÇIK RİSK — yazan/okuyan ayrışması (v1.2.0 ile DOĞDU)
+## ✅ Yazan/okuyan ayrışması — ÇÖZÜLDÜ (2026-07-31)
 
-`normalizeMobil`'in `calendar-api` içinde **3 yerel kopyası** var ve üçü de hâlâ
-v1.1.0 davranışında (transliterasyon YOK):
+v1.2.0 kısa süreliğine bir asimetri doğurmuştu: `m:` anahtarını **YAZAN** taraf
+paketi (transliterate eden) kullanırken, **OKUYAN** üç yol `calendar-api` içindeki
+eski yerel kopyalarında kalmıştı.
 
-| Rol | Dosya | Sürüm |
-|---|---|---|
-| **YAZAN** | `scripts/generate_patient_thumbs.mjs:46` | ✅ paketten (v1.2.0) |
-| okuyan | `src/lib/patientFolder.ts:31` | ❌ yerel, eski |
-| okuyan | `scripts/finder-helper.mjs:69` | ❌ yerel, eski |
-| okuyan | `scripts/kontrol_notlari_finder.mjs:92` | ❌ yerel, eski |
-
-**Kritik nokta:** yazan taraf `m:` anahtarını **klasör adından** üretiyor ve klasör
-adları `cleanDisplayName`'den GEÇMEZ. Yani yukarıdaki "0 etkilenen" ölçümünün
-kapsamadığı giriş yolu tam olarak burasıdır:
+Kritik nokta: yazan taraf anahtarı **klasör adından** üretiyor ve klasör adları
+`cleanDisplayName`'den GEÇMEZ — yani "0 etkilenen" ölçümünün kapsamadığı giriş
+yolu tam olarak burasıydı:
 
 ```
 "Đorđe Nikolić" klasörü →  yazan: m:dorde nikolic  |  okuyan: m:or e nikolic
-"Алекс Петков"  klasörü →  yazan: m:aleks petkov   |  okuyan: m:
 ```
 
-v1.2.0 öncesi dördü de aynı şekilde bozuktu, yani **uyumluydular**. Şimdi biri
-düzeldi, üçü düzelmedi.
+**Düzeltildi:** dört yol da artık `import { normalizeMobil } from '@rino/shared'`
+kullanıyor. `normalizeMobil` ekosistemde **tek tanım** (önce 4'tü).
 
-**Şu an latent:** 3573 hasta klasörü tarandı, hiçbirinde bu karakter sınıfı yok.
-İlk yabancı isimli klasör açıldığı gün kırılır.
+| Rol | Dosya | Durum |
+|---|---|---|
+| YAZAN | `scripts/generate_patient_thumbs.mjs` | ✅ paketten |
+| okuyan | `src/lib/patientFolder.ts` | ✅ paketten |
+| okuyan | `scripts/finder-helper.mjs` | ✅ paketten |
+| okuyan | `scripts/kontrol_notlari_finder.mjs` | ✅ paketten |
 
-**Yapılması gereken:** üç kopya da `import { normalizeMobil } from '@rino/shared'`
-ile değiştirilmeli. Bekçi bunu YAKALAMAZ (sayı azalır, artmaz).
+`finder-helper.mjs` bir launchd daemon'ı; paket çözümlemesi launchd bağlamında
+(cwd=`/`, mutlak yol, `/usr/local/bin/node`) çalıştırılarak doğrulandı.
 
 ### Kiril haritası iki yerde
 
@@ -172,10 +169,32 @@ kasıtlı mı? Kasıtlıysa testi güncelle **ve** tüketicileri yeni etikete ta
 
 ### Bekçi
 
-`npm run guard` kardeş projeleri tarayıp bu paketin sahiplendiği fonksiyonların
-yerel kopya sayısını `scripts/duplicate-baseline.json` ile karşılaştırır.
-**Sayı artarsa hata verir.** Mevcut kopyaları silmeye zorlamaz — sadece
-kanamayı durdurur. Kopya azalırsa taban çizgisini kilitlemeni söyler.
+`npm run guard` (~0.2 sn) kardeş projeleri tarayıp izlenen fonksiyonların yerel
+kopya sayısını `scripts/duplicate-baseline.json` ile karşılaştırır. **Sayı
+artarsa hata verir.** Mevcut kopyaları silmeye zorlamaz — kanamayı durdurur.
+
+İki kategori var ve tavsiyeleri farklıdır:
+
+| | Fonksiyonlar | Yeni kopya çıkarsa |
+|---|---|---|
+| **SAHİPLENİLEN** | `calculateControlLabel` `normalizeMobil` `daysBetweenDates` `transliterate` | paketten import et |
+| **İZLENEN** | `normalizeName` `phoneLast10` `normalizePhone` `titleCase` `cleanDisplayName` `categorizeEvent` | pakette değil; mevcut bir tanımı kullan ya da kanonik bir yer seç |
+
+İzlenenler ekosistemde zaten çok kopyalı (analiz: `normalizeName` 19,
+`phoneLast10` 10, …) ve bir kısmı **kasıtlı ürün farkı** (`categorizeEvent`) —
+o yüzden "paketten import et" onlar için doğru tavsiye değil.
+
+Yakaladığı tanım biçimleri: `function f(`, `const f =`, nesne-metodu kısayolu
+`f(a) {`, sınıf metodu, `f: function(…)`, `f: (a) => …`.
+
+**Commit anında çalışır.** `scripts/install-hooks.sh` her kardeş repoya bir
+`pre-commit` hook'u kurar. Hook, kopya BAŞKA bir repodaysa commit'i engellemez —
+yalnız uyarır. Bypass: `git commit --no-verify`.
+
+> `core.hooksPath` bilinçli olarak KULLANILMIYOR: `calendar-api` ve `takvim`'de
+> Vercel deploy izleyicisi `pre-push` hook'ları var ve `core.hooksPath` onları
+> sessizce devre dışı bırakırdı. Hook doğrudan `.git/hooks/`'a kopyalanır —
+> yani sürümlenmez; repo yeniden klonlanırsa script tekrar çalıştırılmalı.
 
 ---
 

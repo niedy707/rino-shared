@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# @rino/shared mükerrer-tanım bekçisi — pre-commit hook.
+#
+# Neden: bekçi yalnız release.sh içinde çalışıyordu; yani calendar-api'ye yeni
+# bir kopya ekleyen biri, birisi rino-shared sürümü yayınlayana kadar hiçbir
+# uyarı almıyordu. Bu hook onu commit anına taşır (~0.2 sn).
+#
+# KURULUM: rino-shared/scripts/install-hooks.sh
+# BYPASS : git commit --no-verify
+#
+# Davranış: bekçi başka bir repodaki kopyadan ötürü hata verirse commit
+# ENGELLENMEZ — yalnız uyarı basılır. Yalnızca BU repodaki yeni kopya engeller.
+
+GUARD="$HOME/Projects/rino-shared/scripts/guard-duplicates.mjs"
+
+# rino-shared yoksa (başka makine / sığ klon) sessizce geç — hook asla
+# commit'i imkânsız hale getirmemeli.
+[ -f "$GUARD" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+OUT=$(node "$GUARD" 2>&1)
+RC=$?
+[ $RC -eq 0 ] && exit 0
+
+REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+
+# Bulunan konumlar arasında BU repoya ait olan var mı?
+if echo "$OUT" | grep -qE "^ +${REPO_NAME}/"; then
+  echo "$OUT"
+  echo
+  echo "⛔ Commit durduruldu: bu repoda yeni mükerrer tanım var."
+  echo "   Kasıtlıysa:  node $GUARD --update"
+  echo "   Atlamak için: git commit --no-verify"
+  exit 1
+fi
+
+echo "$OUT"
+echo
+echo "⚠️  Bekçi hata verdi ama yeni kopya BAŞKA bir repoda — commit'e izin veriliyor."
+exit 0
