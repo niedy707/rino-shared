@@ -5,6 +5,7 @@
  * değiştirmek, mevcut anahtarları öksüz bırakır. Değişiklik ÖNCE test/names.test.ts
  * içinde sabitlenmeli, SONRA anahtar migrasyonuyla BİRLİKTE yayınlanmalı.
  */
+export declare function transliterate(s: string): string;
 /**
  * KANONİK vesikalık/not ANAHTAR normalizasyonu.
  *
@@ -24,20 +25,17 @@
  *
  * @example normalizeMobil("İrem Öz-Çelik")  // → "irem oz celik"
  * @example normalizeMobil("José García")    // → "jose garcia"
+ * @example normalizeMobil("Алекс Петков")   // → "aleks petkov"
+ * @example normalizeMobil("Đorđe Nikolić")  // → "dorde nikolic"
  *
- * 🔴 BİLİNEN SINIRLAMA — NFD ile AYRIŞMAYAN harfler bozulur:
+ * v1.2.0'da düzeltildi: önce `transliterate()` çağrılıyor, böylece Kiril ve
+ * NFD ile ayrışmayan Latin harfler (ø ł ß æ þ đ) SİLİNMEK yerine ASCII'ye
+ * çevriliyor. Öncesinde "Алекс Петков" → "" (boş) oluyordu ve Kiril isimli tüm
+ * hastalar aynı `m:` anahtarına çakışıyordu.
  *
- *   Sørén Ångström  → "s ren angstrom"   (ø silinir, kelime bölünür)
- *   Đorđe Nikolić   → "or e nikolic"     (Sırp đ)
- *   Łukasz Wałęsa   → "ukasz wa esa"     (Leh ł)
- *   Weiß Müller     → "wei muller"       (Alman ß)
- *   Алекс Петков    → ""                 (Kiril — TÜM Kiril isimler AYNI boş
- *                                          anahtara çakışır, biri diğerini ezer)
- *
- * NFD yalnız BİRLEŞEN aksanları ayrıştırır (ö→o+¨). Kendi kod noktası olan
- * harfler ve Latin-dışı alfabeler ayrışmadığı için `[^a-z0-9\s]` kuralına takılır.
- *
- * Klinik profili gereği bu alfabeler gerçek (Bulgar/Sırp/Polonyalı hastalar).
- * Düzeltme = anahtar değişikliği → migrasyon gerektirir. Bkz. README "Bilinen Sorunlar".
+ * Mevcut veriye etkisi ÖLÇÜLDÜ: 1616 hasta + 1482 not + 200 vesikalık anahtarının
+ * HİÇBİRİ değişmedi (saklanan isimlerde bu karakterler yok — calendar-api'nin
+ * cleanDisplayName'i zaten Latin'e çeviriyordu). Kazanç okuma tarafında:
+ * mobil-panel arama kutusuna "Алекс" yazan biri artık "Aleks Petkov"u buluyor.
  */
 export declare function normalizeMobil(name: string): string;

@@ -47,48 +47,54 @@ buraya taşımak sahte bir birlik kurar ve birinin ekranını sessizce bozar.
 
 ---
 
-## 🔴 Bilinen Sorunlar
+## ✅ v1.2.0 — ASCII-dışı harf düzeltmesi
 
-### `normalizeMobil` ASCII-dışı harfleri bozuyor
+`normalizeMobil` artık önce `transliterate()` çağırıyor.
 
 `NFD` yalnız **birleşen** aksanları ayrıştırır (`ö→o+¨`, `ñ→n+~`). Kendi kod
-noktası olan harfler ve Latin-dışı alfabeler ayrışmaz → `[^a-z0-9\s]` kuralı
-onları boşluğa çevirir:
+noktası olan harfler (`ø ł ß æ þ đ`) ve Latin-dışı alfabeler (Kiril) ayrışmadığı
+için `[^a-z0-9\s]` kuralına takılıp **siliniyorlardı**:
 
-| Girdi | Çıktı | |
+| Girdi | v1.1.0 | v1.2.0 |
 |---|---|---|
-| `Björn Håkansson` | `bjorn hakansson` | ✅ |
-| `François Lévêque` | `francois leveque` | ✅ |
-| `Sørén Ångström` | `s ren angstrom` | ❌ kelime bölündü |
-| `Đorđe Nikolić` | `or e nikolic` | ❌ (Sırp) |
-| `Łukasz Wałęsa` | `ukasz wa esa` | ❌ (Polonyalı) |
-| `Weiß Müller` | `wei muller` | ❌ (Alman) |
-| `Алекс Петков` | `` (boş) | ❌ (Bulgar) — **tüm Kiril isimler aynı anahtara çakışıyor** |
+| `Björn Håkansson` | `bjorn hakansson` ✅ | `bjorn hakansson` (değişmedi) |
+| `François Lévêque` | `francois leveque` ✅ | `francois leveque` (değişmedi) |
+| `Sørén Ångström` | `s ren angstrom` ❌ | **`soren angstrom`** |
+| `Đorđe Nikolić` | `or e nikolic` ❌ | **`dorde nikolic`** |
+| `Łukasz Wałęsa` | `ukasz wa esa` ❌ | **`lukasz walesa`** |
+| `Weiß Müller` | `wei muller` ❌ | **`weiss muller`** |
+| `Алекс Петков` | `` (boş) ❌ | **`aleks petkov`** |
 
-Bu çıktı bir Redis ANAHTARIDIR (`patient_thumbs` ve `drpanel:muayene_notu`
-içindeki `m:` önekli alanlar).
+### Neden migrasyon gerekmedi
 
-### 📊 Ölçülen etki: 2026-07-31 itibarıyla **0 hasta**
+Bu çıktı bir Redis ANAHTARIDIR — ama değişiklik öncesi **gerçek verinin tamamı**
+üzerinde eski ve yeni fonksiyon karşılaştırıldı:
 
 ```
-1616 hasta kaydı · 0 harf kaybı · 0 boş anahtar · 0 çakışma
-patient_thumbs 200 alan · drpanel:muayene_notu 1482 alan · boş anahtar: 0
+1616 hasta adı karşılaştırıldı · anahtarı DEĞİŞEN: 0
+patient_thumbs 200 anahtar · öksüz kalacak: 0
+drpanel:muayene_notu 1482 anahtar · öksüz kalacak: 0
 ```
 
-**Neden sıfır?** `calendar-api`'nin `cleanDisplayName`'i isimleri `hastalar_db`'ye
-yazmadan ÖNCE `transliterateCyrillic` ile Latin'e çeviriyor (`c4e2877`, `666835e`).
-`normalizeMobil`'e ulaşan isim zaten temizlenmiş oluyor. Yani hata **gerçek ama
-yukarı akışta maskeli** — saklanan hiçbir anahtar bozuk değil.
+Saklanan isimlerin hiçbirinde bu karakterler yok, çünkü `calendar-api`'nin
+`cleanDisplayName`'i isimleri `hastalar_db`'ye yazmadan ÖNCE Latin'e çeviriyor
+(`c4e2877`, `666835e`). Hata gerçekti ama **yukarı akışta maskeliydi**.
 
-**Sonuç: düzeltme migrasyon GEREKTİRMEZ.** Hiçbir mevcut anahtar değişmez,
-çünkü saklanan isimlerin hiçbirinde bu karakterler yok.
+### Kazanç: okuma tarafı
 
-**Kalan gerçek risk** — temizlikten geçmeyen girdi yolları:
-- `mobil-panel/app/(panel)/ara/page.tsx` — kullanıcı arama kutusuna ham metin
-  yazıyor. "Алекс" aratan biri, "Aleks Petkov" olarak kayıtlı hastayı bulamaz.
-  Düzeltme bunu iyileştirir.
-- İleride `cleanDisplayName`'den geçmeyen yeni bir yazma yolu eklenirse hata
-  aktif hale gelir.
+`mobil-panel/app/(panel)/ara/page.tsx` arama kutusuna **ham kullanıcı girdisi**
+yazılıyor ve `normalizeMobil`'den geçiyor — temizlikten geçmeyen tek yol buydu.
+Artık "Алекс" aratan biri, `Aleks Petkov` olarak kayıtlı hastayı buluyor.
+
+Ayrıca ileride `cleanDisplayName`'den geçmeyen yeni bir yazma yolu eklenirse
+hata artık aktif hale gelmez.
+
+### Kiril haritası iki yerde
+
+Buradaki `transliterate()` ile `calendar-api/src/lib/classification.ts`
+içindeki `transliterateCyrillic` **birebir aynı Kiril haritasını** kullanır.
+Ayrışırlarsa yazan ile okuyan farklı anahtar üretir. Uzun vadede calendar-api
+buradakini benimsemeli.
 
 Ölçümü tekrarla (salt-okunur, `GET`/`HKEYS` dışında komut çalıştırmaz):
 

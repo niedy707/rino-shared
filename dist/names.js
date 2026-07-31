@@ -6,6 +6,45 @@
  * içinde sabitlenmeli, SONRA anahtar migrasyonuyla BİRLİKTE yayınlanmalı.
  */
 /**
+ * Latin-dışı ve NFD ile AYRIŞMAYAN harfleri ASCII karşılığına çevirir.
+ *
+ * Neden gerekli: `String.normalize('NFD')` yalnız BİRLEŞEN aksanları ayrıştırır
+ * (ö → o + ¨). Kendi kod noktası olan harfler (ø ł ß æ þ đ) ve Latin-dışı
+ * alfabeler (Kiril) ayrışmaz — bu yüzden `[^a-z0-9\s]` kuralına takılıp SİLİNİR.
+ *
+ * Kiril haritası, calendar-api/src/lib/classification.ts içindeki
+ * `transliterateCyrillic` ile BİREBİR aynıdır (c4e2877, 666835e). İki taraf
+ * ayrışırsa yazan ile okuyan farklı anahtar üretir.
+ *
+ * @example transliterate("Алекс Петков")  // → "Aleks Petkov"
+ * @example transliterate("Đorđe Nikolić") // → "Dorde Nikolić"  (ć NFD ile ayrışır)
+ */
+const TRANSLIT = {
+    // ── Kiril (calendar-api CYRILLIC_MAP ile birebir) ──────────────────────────
+    а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z', и: 'i', й: 'y',
+    к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f',
+    х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sht', ъ: 'a', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+    і: 'i', ї: 'yi', є: 'ye', ґ: 'g',
+    // ── NFD ile ayrışmayan Latin harfler ───────────────────────────────────────
+    ø: 'o', œ: 'oe', æ: 'ae', ß: 'ss', ł: 'l', đ: 'd', ð: 'd', þ: 'th', ħ: 'h', ŧ: 't', ŋ: 'n',
+};
+const NEEDS_TRANSLIT = /[Ѐ-ӿԀ-ԯøœæßłđðþħŧŋ]/i;
+export function transliterate(s) {
+    if (!s || !NEEDS_TRANSLIT.test(s))
+        return s;
+    let out = '';
+    for (const ch of s) {
+        const low = ch.toLowerCase();
+        const lat = TRANSLIT[low];
+        if (lat === undefined) {
+            out += ch;
+            continue;
+        }
+        out += (ch !== low && lat) ? lat.charAt(0).toUpperCase() + lat.slice(1) : lat;
+    }
+    return out;
+}
+/**
  * KANONİK vesikalık/not ANAHTAR normalizasyonu.
  *
  * `patient_thumbs` ve `drpanel:muayene_notu` içindeki `m:` önekli alanları üreten
@@ -24,24 +63,21 @@
  *
  * @example normalizeMobil("İrem Öz-Çelik")  // → "irem oz celik"
  * @example normalizeMobil("José García")    // → "jose garcia"
+ * @example normalizeMobil("Алекс Петков")   // → "aleks petkov"
+ * @example normalizeMobil("Đorđe Nikolić")  // → "dorde nikolic"
  *
- * 🔴 BİLİNEN SINIRLAMA — NFD ile AYRIŞMAYAN harfler bozulur:
+ * v1.2.0'da düzeltildi: önce `transliterate()` çağrılıyor, böylece Kiril ve
+ * NFD ile ayrışmayan Latin harfler (ø ł ß æ þ đ) SİLİNMEK yerine ASCII'ye
+ * çevriliyor. Öncesinde "Алекс Петков" → "" (boş) oluyordu ve Kiril isimli tüm
+ * hastalar aynı `m:` anahtarına çakışıyordu.
  *
- *   Sørén Ångström  → "s ren angstrom"   (ø silinir, kelime bölünür)
- *   Đorđe Nikolić   → "or e nikolic"     (Sırp đ)
- *   Łukasz Wałęsa   → "ukasz wa esa"     (Leh ł)
- *   Weiß Müller     → "wei muller"       (Alman ß)
- *   Алекс Петков    → ""                 (Kiril — TÜM Kiril isimler AYNI boş
- *                                          anahtara çakışır, biri diğerini ezer)
- *
- * NFD yalnız BİRLEŞEN aksanları ayrıştırır (ö→o+¨). Kendi kod noktası olan
- * harfler ve Latin-dışı alfabeler ayrışmadığı için `[^a-z0-9\s]` kuralına takılır.
- *
- * Klinik profili gereği bu alfabeler gerçek (Bulgar/Sırp/Polonyalı hastalar).
- * Düzeltme = anahtar değişikliği → migrasyon gerektirir. Bkz. README "Bilinen Sorunlar".
+ * Mevcut veriye etkisi ÖLÇÜLDÜ: 1616 hasta + 1482 not + 200 vesikalık anahtarının
+ * HİÇBİRİ değişmedi (saklanan isimlerde bu karakterler yok — calendar-api'nin
+ * cleanDisplayName'i zaten Latin'e çeviriyordu). Kazanç okuma tarafında:
+ * mobil-panel arama kutusuna "Алекс" yazan biri artık "Aleks Petkov"u buluyor.
  */
 export function normalizeMobil(name) {
-    return (name || '')
+    return transliterate((name || '').normalize('NFC'))
         .replace(/İ/g, 'i').replace(/I/g, 'ı')
         .toLowerCase()
         .replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u')

@@ -30,7 +30,14 @@ const BASELINE_PATH = join(REPO, 'scripts', 'duplicate-baseline.json');
 const SIBLINGS = ['calendar-api', 'clinic-sync', 'takvim', 'asistan-panel', 'mobil-panel'];
 
 /** Bu repo tarafından SAHİPLENİLEN fonksiyonlar. Yerel kopyası ARTMAMALI. */
-const GUARDED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates'];
+const GUARDED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 'transliterate'];
+
+/**
+ * NOT: calendar-api'de `transliterateCyrillic` adında AYRI (yalnız Kiril kapsayan)
+ * bir kopya var — farklı isim olduğu için bu bekçi onu saymaz. İkisinin Kiril
+ * haritası BİREBİR aynı tutulmalı; ayrışırlarsa yazan ile okuyan farklı anahtar
+ * üretir. Uzun vadede calendar-api buradaki transliterate()'i benimsemeli.
+ */
 
 const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'dist', 'coverage', 'worktrees', '_archive', 'arsiv', '.venv-photos']);
 const EXTS = /\.(ts|tsx|mjs|js)$/;

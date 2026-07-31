@@ -3,6 +3,7 @@
   "counts": {
     "calculateControlLabel": 1,
     "normalizeMobil": 4,
-    "daysBetweenDates": 1
+    "daysBetweenDates": 1,
+    "transliterate": 1
   }
 }
