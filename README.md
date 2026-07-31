@@ -9,13 +9,14 @@ Tüketiciler: `calendar-api`, `clinic-sync`, `takvim`, `mobil-panel`.
 
 ---
 
-## Yüzey — 3 fonksiyon
+## Yüzey — 4 export
 
 | Fonksiyon | Dosya | Import eden |
 |---|---|---|
 | `calculateControlLabel` | `controlDuration.ts` | calendar-api, takvim, clinic-sync ×3, mobil-panel |
 | `daysBetweenDates` | `controlDuration.ts` | mobil-panel |
 | `normalizeMobil` | `names.ts` | calendar-api (vesikalık), clinic-sync (notlar), mobil-panel |
+| `transliterate` | `names.ts` | (v1.2.0'da eklendi — `normalizeMobil` içinde kullanılıyor, dışarıdan henüz import edilmiyor) |
 
 ### Neden bu kadar küçük?
 
@@ -70,11 +71,16 @@ için `[^a-z0-9\s]` kuralına takılıp **siliniyorlardı**:
 Bu çıktı bir Redis ANAHTARIDIR — ama değişiklik öncesi **gerçek verinin tamamı**
 üzerinde eski ve yeni fonksiyon karşılaştırıldı:
 
+Yayın öncesi tek seferlik kapı (2026-07-31, v1.1.0 ↔ v1.2.0 karşılaştırması):
+
 ```
 1616 hasta adı karşılaştırıldı · anahtarı DEĞİŞEN: 0
 patient_thumbs 200 anahtar · öksüz kalacak: 0
 drpanel:muayene_notu 1482 anahtar · öksüz kalacak: 0
 ```
+
+> Anahtar sayıları oynaktır (mükerrer temizliği sonrası `patient_thumbs` aynı gün
+> 98'e düştü). Önemli olan sayılar değil, **anahtarı değişen: 0** sonucudur.
 
 Saklanan isimlerin hiçbirinde bu karakterler yok, çünkü `calendar-api`'nin
 `cleanDisplayName`'i isimleri `hastalar_db`'ye yazmadan ÖNCE Latin'e çeviriyor
@@ -83,11 +89,38 @@ Saklanan isimlerin hiçbirinde bu karakterler yok, çünkü `calendar-api`'nin
 ### Kazanç: okuma tarafı
 
 `mobil-panel/app/(panel)/ara/page.tsx` arama kutusuna **ham kullanıcı girdisi**
-yazılıyor ve `normalizeMobil`'den geçiyor — temizlikten geçmeyen tek yol buydu.
-Artık "Алекс" aratan biri, `Aleks Petkov` olarak kayıtlı hastayı buluyor.
+yazılıyor ve `normalizeMobil`'den geçiyor. Artık "Алекс" aratan biri,
+`Aleks Petkov` olarak kayıtlı hastayı buluyor.
 
-Ayrıca ileride `cleanDisplayName`'den geçmeyen yeni bir yazma yolu eklenirse
-hata artık aktif hale gelmez.
+## 🔴 AÇIK RİSK — yazan/okuyan ayrışması (v1.2.0 ile DOĞDU)
+
+`normalizeMobil`'in `calendar-api` içinde **3 yerel kopyası** var ve üçü de hâlâ
+v1.1.0 davranışında (transliterasyon YOK):
+
+| Rol | Dosya | Sürüm |
+|---|---|---|
+| **YAZAN** | `scripts/generate_patient_thumbs.mjs:46` | ✅ paketten (v1.2.0) |
+| okuyan | `src/lib/patientFolder.ts:31` | ❌ yerel, eski |
+| okuyan | `scripts/finder-helper.mjs:69` | ❌ yerel, eski |
+| okuyan | `scripts/kontrol_notlari_finder.mjs:92` | ❌ yerel, eski |
+
+**Kritik nokta:** yazan taraf `m:` anahtarını **klasör adından** üretiyor ve klasör
+adları `cleanDisplayName`'den GEÇMEZ. Yani yukarıdaki "0 etkilenen" ölçümünün
+kapsamadığı giriş yolu tam olarak burasıdır:
+
+```
+"Đorđe Nikolić" klasörü →  yazan: m:dorde nikolic  |  okuyan: m:or e nikolic
+"Алекс Петков"  klasörü →  yazan: m:aleks petkov   |  okuyan: m:
+```
+
+v1.2.0 öncesi dördü de aynı şekilde bozuktu, yani **uyumluydular**. Şimdi biri
+düzeldi, üçü düzelmedi.
+
+**Şu an latent:** 3573 hasta klasörü tarandı, hiçbirinde bu karakter sınıfı yok.
+İlk yabancı isimli klasör açıldığı gün kırılır.
+
+**Yapılması gereken:** üç kopya da `import { normalizeMobil } from '@rino/shared'`
+ile değiştirilmeli. Bekçi bunu YAKALAMAZ (sayı azalır, artmaz).
 
 ### Kiril haritası iki yerde
 
@@ -96,11 +129,18 @@ içindeki `transliterateCyrillic` **birebir aynı Kiril haritasını** kullanır
 Ayrışırlarsa yazan ile okuyan farklı anahtar üretir. Uzun vadede calendar-api
 buradakini benimsemeli.
 
-Ölçümü tekrarla (salt-okunur, `GET`/`HKEYS` dışında komut çalıştırmaz):
+### Ölçüm script'i ne yapar, ne yapmaz
 
 ```bash
 node ~/Projects/calendar-api/scripts/audit_mobil_keys.mjs
 ```
+
+Bu script **kurulu** fonksiyonu import eder ve "mevcut fonksiyon saklanan
+isimlerden herhangi birini bozuyor mu?" sorusunu cevaplar. v1.2.0'dan sonra
+doğal olarak hep 0 döner.
+
+**Yukarıdaki eski↔yeni karşılaştırmasını TEKRARLAMAZ** — o, yayın öncesi tek
+seferlik bir kapıydı ve iki fonksiyon sürümünü yan yana koşturmayı gerektirir.
 
 ### `normalizeMobil`'in 3 yerel kopyası var
 
@@ -119,7 +159,7 @@ anahtar üretir. `npm run guard` sayının artmasını engeller ama mevcut 3'ü 
 ## Geliştirme
 
 ```bash
-npm test          # karakterizasyon testleri (57)
+npm test          # karakterizasyon testleri (60)
 npm run guard     # mükerrer tanım sayısı artmasın
 npm run build     # dist/ üret
 ```
