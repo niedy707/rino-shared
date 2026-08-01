@@ -5,7 +5,13 @@
       "calculateControlLabel": 1,
       "daysBetweenDates": 1,
       "normalizeMobil": 1,
-      "transliterate": 1
+      "transliterate": 1,
+      "toE164": 1,
+      "phoneLast10": 1,
+      "phoneCountry": 1,
+      "phoneType": 1,
+      "isMobilePhone": 1,
+      "localeForPhone": 1
     },
     "calendar-api": {
       "cleanDisplayName": 2,
@@ -18,8 +24,13 @@
     "clinic-sync": {
       "normalizeName": 8,
       "phoneLast10": 8,
+      "localeForPhone": 3,
       "normalizePhone": 3,
       "titleCase": 5,
+      "toE164": 2,
+      "phoneCountry": 2,
+      "phoneType": 2,
+      "isMobilePhone": 2,
       "transliterateCyrillic": 2
     },
     "takvim": {

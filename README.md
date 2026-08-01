@@ -9,14 +9,20 @@ Tüketiciler: `calendar-api`, `clinic-sync`, `takvim`, `mobil-panel`.
 
 ---
 
-## Yüzey — 4 export
+## Yüzey — 10 export
 
-| Fonksiyon | Dosya | Import eden |
+| Fonksiyon | Dosya | Not |
 |---|---|---|
 | `calculateControlLabel` | `controlDuration.ts` | calendar-api, takvim, clinic-sync ×3, mobil-panel |
 | `daysBetweenDates` | `controlDuration.ts` | mobil-panel |
-| `normalizeMobil` | `names.ts` | calendar-api (vesikalık), clinic-sync (notlar), mobil-panel |
-| `transliterate` | `names.ts` | (v1.2.0'da eklendi — `normalizeMobil` içinde kullanılıyor, dışarıdan henüz import edilmiyor) |
+| `normalizeMobil` | `names.ts` | vesikalık/not `m:` anahtarı — calendar-api, clinic-sync, mobil-panel |
+| `transliterate` | `names.ts` | Kiril + `ø ł ß æ þ đ` → ASCII |
+| `toE164` | `phones.ts` | **kanonik depolama biçimi** |
+| `phoneLast10` | `phones.ts` | mükerrer anahtarı — sözleşme: geçersizde `''` |
+| `phoneCountry` | `phones.ts` | ISO ülke kodu |
+| `phoneType` | `phones.ts` | `MOBILE` / `FIXED_LINE` … |
+| `isMobilePhone` | `phones.ts` | WhatsApp kapısı |
+| `localeForPhone` | `phones.ts` | isim büyütme locale'i |
 
 ### Neden bu kadar küçük?
 
@@ -45,6 +51,38 @@ tarih hesabı, anahtar normalizasyonu, biçimlendirme.
 **kasıtlı olarak** farklı sınıflandırıyor — takvim'de lavanta renk `blocked`,
 calendar-api'de değil. Bu bir bug değil, iki farklı ürün kararı. Böyle şeyleri
 buraya taşımak sahte bir birlik kurar ve birinin ekranını sessizce bozar.
+
+---
+
+## ✅ v1.3.0 — telefon ailesi taşındı
+
+2026-08-01 ölçümü: ekosistemde `phoneLast10`'un **19**, `normalizePhone`
+ailesinin **20+ çağrı noktasında 12 farklı davranışı** vardı.
+
+**Kök sebep tembellik değil, yapısal erişimsizlikti.** Kanonik sayılan
+fonksiyonlar `clinic-sync/src/lib/shared.mjs` içindeydi; o dosya başlığında
+kendini *"@rino/shared — Ortak Yardımcı Modüller"* ilan etmesine rağmen **yerel
+bir dosyaydı**. `calendar-api`, `mobil-panel` ve `takvim` paketi kursalar da o
+fonksiyonlara **fiziksel olarak ulaşamıyordu** — kopya üretmekten başka
+seçenekleri yoktu.
+
+`toE164`, `phoneCountry`, `phoneType`, `isMobilePhone`, `localeForPhone` ve
+`phoneLast10` buraya **taşındı** (kopyalanmadı). `libphonenumber-js/max`
+bağımlılık olarak eklendi.
+
+**Eşdeğerlik kanıtı** — taşıma öncesi gerçek verinin tamamında karşılaştırıldı:
+
+```
+3834 değer (hastalar_db 1422 · muayene_db 496 · contacts_db 1916)
+6 fonksiyon × 3834 değer → FARK: 0
+```
+
+Ölçüm raporu: `~/Projects/TELEFON_NORMALIZASYON_OLCUMU_2026-08-01.md`
+
+> `normalizePhone` **taşınmadı** — `?` önekli "şüpheli kabul" sözleşmesi
+> (`"0212…"` → `"?2123456789"`) yalnız clinic-sync'e özgü ve başka hiçbir
+> kopyada yok. Kanonik yapmak o tuhaflığı ekosisteme yaymak olurdu. Depolama
+> için `toE164` kullanın.
 
 ---
 

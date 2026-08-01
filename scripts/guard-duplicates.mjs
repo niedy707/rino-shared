@@ -34,7 +34,11 @@ const SIBLINGS = ['calendar-api', 'clinic-sync', 'takvim', 'asistan-panel', 'mob
  * SAHİPLENİLEN — bu paketin export ettiği fonksiyonlar.
  * Yerel kopya ÇIKMAMALI; çözüm: paketten import et.
  */
-const OWNED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 'transliterate'];
+const OWNED = [
+  'calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 'transliterate',
+  // v1.3.0 — telefon ailesi clinic-sync'ten TAŞINDI (kopyalanmadı)
+  'toE164', 'phoneLast10', 'phoneCountry', 'phoneType', 'isMobilePhone', 'localeForPhone',
+];
 
 /**
  * İZLENEN — pakette DEĞİL ama ekosistemde çok kopyalı ve ayrışmış fonksiyonlar.
@@ -43,7 +47,7 @@ const OWNED = ['calculateControlLabel', 'normalizeMobil', 'daysBetweenDates', 't
  * farkı (categorizeEvent), bir kısmı yerel fork. Amaç yalnız KANAMAYI DURDURMAK:
  * sayı artarsa haber ver, mevcut kopyaları silmeye zorlama.
  */
-const WATCHED = ['normalizeName', 'phoneLast10', 'normalizePhone', 'titleCase', 'cleanDisplayName', 'categorizeEvent', 'transliterateCyrillic'];
+const WATCHED = ['normalizeName', 'normalizePhone', 'titleCase', 'cleanDisplayName', 'categorizeEvent', 'transliterateCyrillic'];
 
 const GUARDED = [...OWNED, ...WATCHED];
 

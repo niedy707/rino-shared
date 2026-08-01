@@ -14,4 +14,5 @@
  * kaynak, kopya koddan daha tehlikelidir — doğru sanılır.
  */
 export * from './names.js';
+export * from './phones.js';
 export * from './controlDuration.js';
