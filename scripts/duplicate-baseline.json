@@ -23,14 +23,14 @@
     },
     "clinic-sync": {
       "normalizeName": 8,
-      "phoneLast10": 8,
-      "localeForPhone": 3,
+      "phoneLast10": 7,
+      "localeForPhone": 2,
       "normalizePhone": 3,
       "titleCase": 5,
-      "toE164": 2,
-      "phoneCountry": 2,
-      "phoneType": 2,
-      "isMobilePhone": 2,
+      "toE164": 1,
+      "phoneCountry": 1,
+      "phoneType": 1,
+      "isMobilePhone": 1,
       "transliterateCyrillic": 2
     },
     "takvim": {
