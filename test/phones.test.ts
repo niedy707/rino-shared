@@ -41,7 +41,7 @@ describe('toE164 — kanonik depolama biçimi', () => {
 
   it('numaranın yanındaki serbest metni temizler', () => {
     // hastalar_db'de gerçekten böyle kayıtlar var: "+90… (eski)"
-    expect(toE164('+905383410965 (eski)')).toBe('+905383410965');
+    expect(toE164('+905551112233 (eski)')).toBe('+905551112233');
   });
 
   it('geçersiz girdide null döner (ASLA uydurmaz)', () => {
@@ -50,8 +50,8 @@ describe('toE164 — kanonik depolama biçimi', () => {
     expect(toE164('')).toBeNull();
     expect(toE164(null)).toBeNull();
     expect(toE164(undefined)).toBeNull();
-    expect(toE164('+9054397817262025')).toBeNull(); // 16 hane — geçersiz
-    expect(toE164('+906766825327')).toBeNull();     // bozuk eski kayıt
+    expect(toE164('+9055511122332025')).toBeNull(); // 16 hane — geçersiz
+    expect(toE164('+906551112233')).toBeNull();     // bozuk eski kayıt
   });
 });
 
@@ -84,6 +84,40 @@ describe('phoneLast10 — mükerrer anahtarı', () => {
   });
 });
 
+describe('null güvenliği — 6 export da null/undefined girdide TypeError vermez', () => {
+  it('her fonksiyon sözleşmesindeki "boş" değeri döner', () => {
+    for (const bad of [null, undefined, '']) {
+      expect(toE164(bad)).toBeNull();
+      expect(phoneLast10(bad)).toBe('');
+      expect(phoneCountry(bad)).toBeNull();
+      expect(phoneType(bad)).toBeNull();
+      expect(isMobilePhone(bad)).toBe(false);
+      expect(localeForPhone(bad)).toBeNull();
+    }
+  });
+});
+
+describe('phoneLast10 — ASCII-dışı rakamlar (v1.3.1, toE164 ile tutarlı)', () => {
+  it('Arap-Hint / Doğu Arap / tam-genişlik rakamlar aynı anahtarı üretir', () => {
+    const arapHint = '٠٥٥٥١١١٢٢٣٣';   // U+0660…
+    const doguArap = '۰۵۵۵۱۱۱۲۲۳۳';   // U+06F0…
+    const tamGenislik = '０５５５１１１２２３３'; // U+FF10…
+    for (const n of [arapHint, doguArap, tamGenislik]) {
+      expect(toE164(n)).toBe('+905551112233');
+      expect(phoneLast10(n)).toBe('5551112233');
+      expect(phoneLast10(n)).toBe(phoneLast10(toE164(n)));
+    }
+  });
+
+  it('ASCII girdide çıktı DEĞİŞMEDİ (mükerrer anahtarı sabit)', () => {
+    expect(phoneLast10('+905551112233')).toBe('5551112233');
+    expect(phoneLast10('0555-111-2233')).toBe('5551112233');
+    expect(phoneLast10('+34 600 000 000')).toBe('4600000000');
+    expect(phoneLast10('12345')).toBe('12345');
+    expect(phoneLast10('abc')).toBe('');
+  });
+});
+
 describe('phoneCountry / phoneType / isMobilePhone', () => {
   it('ülkeyi doğru tespit eder', () => {
     expect(phoneCountry('+905551112233')).toBe('TR');
@@ -93,7 +127,7 @@ describe('phoneCountry / phoneType / isMobilePhone', () => {
   });
 
   it('geçersizde null döner — çağıran elle kurallara düşebilsin', () => {
-    expect(phoneCountry('+906766825327')).toBeNull();
+    expect(phoneCountry('+906551112233')).toBeNull();
     expect(phoneCountry('12345')).toBeNull();
     expect(phoneCountry(null)).toBeNull();
   });
@@ -110,8 +144,8 @@ describe('phoneCountry / phoneType / isMobilePhone', () => {
 describe('localeForPhone — isim büyütme locale\'i', () => {
   /**
    * NEDEN: Türkçe locale'de I→ı düştüğü için yabancı isimler bozuluyordu
-   * ("GEORGI HRISTOV" → "Georgı Hrıstov"). hastalar_db'de bu yüzden
-   * "Georgı Georgıev Hrıstov", "Madgına Iordache" gibi kirli kayıtlar oluştu.
+   * ("IVAN PRIMEROV" → "Ivan Prımerov"). hastalar_db'de bu yüzden
+   * "Ivan Prımerov", "Irına Exemplu" gibi (sentetik örnek) kirli kayıtlar oluştu.
    */
   it('TR numarası → tr-TR', () => {
     expect(localeForPhone('+905551112233')).toBe('tr-TR');
@@ -126,11 +160,11 @@ describe('localeForPhone — isim büyütme locale\'i', () => {
   });
 
   it('kütüphane tanımayınca elle kurallara düşer', () => {
-    // "+906766825327" geçersiz ama 90… önekiyle TR sayılmalı.
+    // "+906551112233" geçersiz ama 90… önekiyle TR sayılmalı.
     // '905' (cep) şartı koşulunca bu kayıt yanlışlıkla yabancı sayılıyordu.
-    expect(localeForPhone('+906766825327')).toBe('tr-TR');
+    expect(localeForPhone('+906551112233')).toBe('tr-TR');
     // 16 haneli bozuk kayıt: TR kalıbına uymaz → yabancı
-    expect(localeForPhone('+9054397817262025')).toBe('en-US');
+    expect(localeForPhone('+9055511122332025')).toBe('en-US');
   });
 
   it('telefon olmayan girdide karar vermez (null)', () => {

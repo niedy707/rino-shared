@@ -2,7 +2,7 @@
  * Numaranın ülkesi — yalnızca numara GEÇERLİYSE.
  *
  * Geçersizde `null` döner ve çağıran elle yazılmış kurallara düşer; böylece
- * kütüphanenin tanımadığı bozuk/eski kayıtlarda ("+906766825327") eski davranış
+ * kütüphanenin tanımadığı bozuk/eski kayıtlarda ("+906551112233") eski davranış
  * korunur.
  *
  * @returns ISO ülke kodu ("TR", "NL", …) veya null
@@ -29,8 +29,8 @@ export declare function toE164(phone: string | null | undefined): string | null;
  * İsim büyütmede kullanılacak locale — numaranın ülkesinden türetilir.
  *
  * NEDEN: Türkçe locale'de `I → ı` düştüğü için yabancı isimler bozuluyordu
- * ("GEORGI HRISTOV" → "Georgı Hrıstov") ve `hastalar_db`'de bu yüzden
- * "Georgı Georgıev Hrıstov", "Madgına Iordache" gibi kirli kayıtlar oluşmuştu.
+ * ("IVAN PRIMEROV" → "Ivan Prımerov") ve `hastalar_db`'de bu yüzden
+ * "Ivan Prımerov", "Irına Exemplu" gibi (sentetik örnek) kirli kayıtlar oluşmuştu.
  *
  * @returns "tr-TR" · "en-US" · numaradan karar çıkmıyorsa `null`
  */
@@ -48,6 +48,12 @@ export declare function localeForPhone(phone: string | null | undefined): string
  * ⚠️ Bu fonksiyon ülke kodunu KIRPAR: "+34 600 000 000" → "4600000000".
  * Yabancı numaraların son 10 hanesi anlamlı bir anahtar değildir; yabancı
  * kayıtlarda `toE164()` ile tam numara üzerinden eşleştir.
+ *
+ * ASCII-dışı rakamlar (tam genişlik, Arap-Hint, Doğu Arap) önce ASCII'ye
+ * çevrilir — `toE164` içindeki libphonenumber ile AYNI küme. v1.3.1 öncesi
+ * "٠٥٥٥١١١٢٢٣٣" için `toE164` geçerli TR numarası döndürürken bu fonksiyon
+ * `''` üretiyordu → aynı hasta iki farklı mükerrer anahtarına düşüyordu.
+ * ASCII girdide çıktı DEĞİŞMEZ.
  *
  * @example phoneLast10("+905551112233") // → "5551112233"
  * @example phoneLast10("0555-111-2233") // → "5551112233"

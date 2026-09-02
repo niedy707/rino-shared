@@ -34,7 +34,7 @@ function parse(phone: string | null | undefined) {
  * Numaranın ülkesi — yalnızca numara GEÇERLİYSE.
  *
  * Geçersizde `null` döner ve çağıran elle yazılmış kurallara düşer; böylece
- * kütüphanenin tanımadığı bozuk/eski kayıtlarda ("+906766825327") eski davranış
+ * kütüphanenin tanımadığı bozuk/eski kayıtlarda ("+906551112233") eski davranış
  * korunur.
  *
  * @returns ISO ülke kodu ("TR", "NL", …) veya null
@@ -74,8 +74,8 @@ export function toE164(phone: string | null | undefined): string | null {
  * İsim büyütmede kullanılacak locale — numaranın ülkesinden türetilir.
  *
  * NEDEN: Türkçe locale'de `I → ı` düştüğü için yabancı isimler bozuluyordu
- * ("GEORGI HRISTOV" → "Georgı Hrıstov") ve `hastalar_db`'de bu yüzden
- * "Georgı Georgıev Hrıstov", "Madgına Iordache" gibi kirli kayıtlar oluşmuştu.
+ * ("IVAN PRIMEROV" → "Ivan Prımerov") ve `hastalar_db`'de bu yüzden
+ * "Ivan Prımerov", "Irına Exemplu" gibi (sentetik örnek) kirli kayıtlar oluşmuştu.
  *
  * @returns "tr-TR" · "en-US" · numaradan karar çıkmıyorsa `null`
  */
@@ -92,7 +92,7 @@ export function localeForPhone(phone: string | null | undefined): string | null 
   if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.length < 10) return null; // telefon değil → karar yok
 
-  // 90… → Türkiye. '905' (cep) şartı koşulunca "+906766825327" gibi bozuk
+  // 90… → Türkiye. '905' (cep) şartı koşulunca "+906551112233" gibi bozuk
   // kayıtlar yanlışlıkla yabancı sayılıyordu; sabit hat da TR'dir.
   if (digits.startsWith('90') && digits.length >= 12 && digits.length <= 13) return 'tr-TR';
   if (digits.length === 10 && digits.startsWith('5')) return 'tr-TR';
@@ -119,10 +119,28 @@ export function localeForPhone(phone: string | null | undefined): string | null 
  * Yabancı numaraların son 10 hanesi anlamlı bir anahtar değildir; yabancı
  * kayıtlarda `toE164()` ile tam numara üzerinden eşleştir.
  *
+ * ASCII-dışı rakamlar (tam genişlik, Arap-Hint, Doğu Arap) önce ASCII'ye
+ * çevrilir — `toE164` içindeki libphonenumber ile AYNI küme. v1.3.1 öncesi
+ * "٠٥٥٥١١١٢٢٣٣" için `toE164` geçerli TR numarası döndürürken bu fonksiyon
+ * `''` üretiyordu → aynı hasta iki farklı mükerrer anahtarına düşüyordu.
+ * ASCII girdide çıktı DEĞİŞMEZ.
+ *
  * @example phoneLast10("+905551112233") // → "5551112233"
  * @example phoneLast10("0555-111-2233") // → "5551112233"
  * @example phoneLast10(null)            // → ""
  */
 export function phoneLast10(phone: string | null | undefined): string {
-  return String(phone || '').replace(/\D/g, '').slice(-10);
+  return asciiDigits(String(phone || '')).replace(/\D/g, '').slice(-10);
+}
+
+/**
+ * Tam genişlik (U+FF10–FF19), Arap-Hint (U+0660–0669) ve Doğu Arap (U+06F0–06F9)
+ * rakamlarını ASCII'ye çevirir — libphonenumber-js `parseDigits` haritasıyla birebir.
+ */
+function asciiDigits(s: string): string {
+  return s.replace(/[\uFF10-\uFF19\u0660-\u0669\u06F0-\u06F9]/g, (ch) => {
+    const c = ch.charCodeAt(0);
+    const base = c >= 0xff10 ? 0xff10 : c >= 0x06f0 ? 0x06f0 : 0x0660;
+    return String(c - base);
+  });
 }

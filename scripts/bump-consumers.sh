@@ -31,7 +31,7 @@ DEP="github:niedy707/rino-shared#${TAG}"
 if [[ -n "${2:-}" ]]; then
   TARGETS=("$2")
 else
-  TARGETS=(calendar-api clinic-sync takvim mobil-panel)
+  TARGETS=(calendar-api clinic-sync takvim mobil-panel web-panel asistan-panel)
 fi
 
 echo "▸ Hedef: ${DEP}"

@@ -28,7 +28,7 @@ const PROJECTS_ROOT = resolve(REPO, '..');
 const BASELINE_PATH = join(REPO, 'scripts', 'duplicate-baseline.json');
 
 /** Kardeş projeler — @rino/shared'ı tüketen ya da tüketmesi beklenen ağaçlar. */
-const SIBLINGS = ['calendar-api', 'clinic-sync', 'takvim', 'asistan-panel', 'mobil-panel'];
+const SIBLINGS = ['calendar-api', 'clinic-sync', 'takvim', 'asistan-panel', 'mobil-panel', 'web-panel', 'insta-takip'];
 
 /**
  * SAHİPLENİLEN — bu paketin export ettiği fonksiyonlar.

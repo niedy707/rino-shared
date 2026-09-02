@@ -54,6 +54,26 @@ buraya taşımak sahte bir birlik kurar ve birinin ekranını sessizce bozar.
 
 ---
 
+## 🔜 v1.3.1 — taslak (yayınlanmadı)
+
+- `calculateControlLabel` geçersiz/boş tarihte `"?"` döner (`"NaNm"` bitti);
+  `GG.AA.YYYY` biçimi açıkça gün.ay.yıl okunur (V8 ay.gün sayıyordu → 7 gün "7m" çıkıyordu).
+  ISO girdilerde çıktı değişmedi.
+- `phoneLast10` Arap-Hint / Doğu Arap / tam-genişlik rakamları `toE164` ile aynı
+  şekilde ASCII'ye çevirir. ASCII girdide çıktı değişmedi.
+- Test/JSDoc'taki gerçek numara ve adlar sentetikle değiştirildi; `package.json`
+  `files` alanı (`test/`, `scripts/`, `src/` tüketiciye gitmez).
+- Yeni: `scripts/pii-bekcisi.mjs`, `scripts/surum-bekcisi.mjs`; hook PII taraması yapar;
+  bekçi `web-panel` ve `insta-takip`i de tarar.
+
+### Bilinen sınır (açık, bilinçli)
+
+`normalizeMobil` Yunanca / Arapça / CJK / tam-genişlik isimleri **boş anahtara**
+çevirir (hepsi çakışır); `Ĳ`, `ﬁ` ligatürleri düşer. Düzeltmesi (`NFKC` + yeni
+alfabe haritaları) anahtar migrasyonu gerektirir — önce
+`calendar-api/scripts/audit_mobil_keys.mjs` ile etki ölçülmeli. Mevcut davranış
+`test/names.test.ts` "BİLİNEN SINIR" bloğunda sabitlendi.
+
 ## ✅ v1.3.0 — telefon ailesi taşındı
 
 2026-08-01 ölçümü: ekosistemde `phoneLast10`'un **19**, `normalizePhone`
@@ -207,10 +227,32 @@ seferlik bir kapıydı ve iki fonksiyon sürümünü yan yana koşturmayı gerek
 ## Geliştirme
 
 ```bash
-npm test          # karakterizasyon testleri (60)
+npm test          # karakterizasyon testleri
 npm run guard     # mükerrer tanım sayısı artmasın
 npm run build     # dist/ üret
+node scripts/pii-bekcisi.mjs --repo . --repo ../calendar-api   # gerçek telefon/TC/ad taraması
+node scripts/surum-bekcisi.mjs                                  # tüketiciler son etikette mi?
 ```
+
+### PII bekçisi
+
+`scripts/pii-bekcisi.mjs` iki modda çalışır: `--staged` (pre-commit hook — staged
+içerikte TR cep telefonu, checksum'u tutan 11 haneli TC ve isteğe bağlı
+`pii-isimler.txt` listesindeki adları arar; eşleşme = commit durur) ve
+`--repo <yol>` (tam tarama: `git ls-files` + çalışma ağacındaki `*_rapor*.md`,
+`*_tara*.md`, `*_denetim*.md`, `COZUMLER.md`, `TODO.md`). Eşleşmeler **maskeli**
+yazılır (`05** *** ** 33`), tam değer asla çıktıya girmez. Sentetik aileler
+(`0555 111 22 33`, `05xx 123 45 67`, `05xx 000 00 00`) beyaz listededir — test ve
+belgelerde yalnız bunları kullan. `pii-isimler.txt` `.gitignore`'dadır; yoksa isim
+taraması sessizce atlanır.
+
+### Sürüm bekçisi
+
+`scripts/surum-bekcisi.mjs` 6 tüketicide `@rino/shared` spec'i + kurulu sürüm +
+Next.js sürümünü bu reponun son etiketiyle karşılaştırır; sapma varsa exit 1.
+launchd (`com.rino.surum-bekcisi`, her gün 07:30) çalıştırır, sonucu
+`~/Library/Logs/rino/surum-bekcisi.last` dosyasına yazar. Ağa çıkmaz (`--remote`
+isteğe bağlı).
 
 ### Testler neden "karakterizasyon"?
 
@@ -280,6 +322,15 @@ ve hiçbir araç bunu göstermiyordu. **Aynı etiket, farklı kod.**
 
 Etikete sabitlemek bunu görünür kılar: `npm ls @rino/shared` gerçek sürümü söyler,
 yükseltme bilinçli ve geri alınabilir olur.
+
+### `files` alanı — `test/` ve `scripts/` tüketiciye gitmez
+
+`package.json`'daki `"files": ["dist", "README.md"]` paketin tarball'ına yalnız bu
+ikisini (+ `package.json`) koyar. **`github:` bağımlılığında da geçerlidir:** npm
+git kaynağını klonlar, `prepare` (tsc) çalıştırır, sonra `npm pack` ile paketler —
+`files` o pack adımında uygulanır. Yani `test/`, `scripts/`, `src/` tüketicilerin
+`node_modules/@rino/shared/` altına inmez; test verisi ve bekçi script'leri
+yayılmaz. Doğrulama: `npm pack --dry-run`.
 
 ### `dist/` neden git'te?
 

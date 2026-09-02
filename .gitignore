@@ -13,3 +13,13 @@ node_modules/
 # Test/araç çıktıları
 coverage/
 *.log
+
+# Denetim/tarama raporları ve düzeltme yedekleri — PUBLIC repoya girmez
+# (raporlar gerçek hasta adı/telefonu içerebilir)
+*_rapor*.md
+*_tara*.md
+*_denetim*.md
+*.duzelt-bak
+
+# PII bekçisinin isim listesi — yerel, ASLA sürümlenmez
+pii-isimler.txt

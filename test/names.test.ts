@@ -65,7 +65,7 @@ describe('normalizeMobil — biçim temizliği', () => {
   });
 
   it('rakamlar korunur', () => {
-    expect(normalizeMobil('tel 0533 378 48 07')).toBe('tel 0533 378 48 07');
+    expect(normalizeMobil('tel 0555 111 22 33')).toBe('tel 0555 111 22 33');
   });
 
   it('boş / null / undefined → boş string (patlamaz)', () => {
@@ -101,11 +101,11 @@ describe('normalizeMobil — NFD ile ayrışmayan harfler (v1.2.0 düzeltmesi)',
    */
   it('Kiril isim Latin karşılığına çevriliyor', () => {
     expect(normalizeMobil('Алекс Петков')).toBe('aleks petkov');
-    expect(normalizeMobil('Георги Христов')).toBe('georgi hristov');
+    expect(normalizeMobil('Иван Примеров')).toBe('ivan primerov');
   });
 
   it('farklı Kiril isimler artık FARKLI anahtar üretiyor (çakışma bitti)', () => {
-    expect(normalizeMobil('Алекс Петков')).not.toBe(normalizeMobil('Георги Христов'));
+    expect(normalizeMobil('Алекс Петков')).not.toBe(normalizeMobil('Иван Примеров'));
   });
 
   it('Sırpça đ korunuyor', () => {
@@ -153,5 +153,36 @@ describe('normalizeMobil — NFD ile ayrışmayan harfler (v1.2.0 düzeltmesi)',
 
   it('karışık Kiril+Latin: her iki kısım da korunuyor', () => {
     expect(normalizeMobil('Алекс Petkov')).toBe('aleks petkov');
+  });
+});
+
+describe('normalizeMobil — ⚠️ BİLİNEN SINIR (belgelenen mevcut davranış, DEĞİŞTİRİLMEDİ)', () => {
+  /**
+   * NEEDS_TRANSLIT yalnız Kiril + 11 Latin harfi tanır; `normalize('NFC')` ligatür ve
+   * tam-genişlik harfleri çözmez. Bu yüzden Yunanca/Arapça/CJK/tam-genişlik isimler
+   * BOŞ anahtara çöker (hepsi aynı `m:` anahtarında çakışır), Ĳ ve ﬁ ligatürleri düşer.
+   *
+   * KASITLI OLARAK DÜZELTİLMEDİ: çıktı bir Redis anahtarıdır; NFKC'ye geçmek ya da
+   * yeni alfabe eklemek mevcut anahtarları oynatabilir. Önce
+   * `calendar-api/scripts/audit_mobil_keys.mjs` ile etki ölçülmeli, sonra anahtar
+   * migrasyonuyla BİRLİKTE yayınlanmalı. Bu test, o gün gelince "önceki davranış
+   * neydi" sorusunun cevabıdır — kırılırsa davranış (bilinçli ya da değil) değişmiştir.
+   */
+  it('Yunanca / Arapça / CJK / tam-genişlik → boş anahtar (çakışma)', () => {
+    expect(normalizeMobil('Γιώργος Παπαδόπουλος')).toBe('');
+    expect(normalizeMobil('محمد')).toBe('');
+    expect(normalizeMobil('田中太郎')).toBe('');
+    expect(normalizeMobil('ＡＢＣ')).toBe('');
+  });
+
+  it('ligatürler düşer: Ĳ ve ﬁ silinir, ẞ (büyük ß) ise "ss" olur', () => {
+    expect(normalizeMobil('Ĳsbrand')).toBe('sbrand');
+    expect(normalizeMobil('ﬁnn')).toBe('nn');
+    expect(normalizeMobil('ẞtraße')).toBe('sstrasse');
+  });
+
+  it('transliterate boş/null girdiyi aynen döndürür (patlamaz)', () => {
+    expect(transliterate(null as unknown as string)).toBeNull();
+    expect(transliterate(undefined as unknown as string)).toBeUndefined();
   });
 });

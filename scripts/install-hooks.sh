@@ -25,7 +25,7 @@ if [ -n "${1:-}" ]; then
   TARGETS=("$1")
 else
   # guard-duplicates.mjs SIBLINGS listesiyle aynı olmalı + rino-shared.
-  TARGETS=(calendar-api clinic-sync takvim asistan-panel mobil-panel rino-shared)
+  TARGETS=(calendar-api clinic-sync takvim asistan-panel mobil-panel web-panel rino-shared)
 fi
 
 for proj in "${TARGETS[@]}"; do

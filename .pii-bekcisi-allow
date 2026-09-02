@@ -1,0 +1,4 @@
+# pii-bekcisi izin listesi (bkz. scripts/pii-bekcisi.mjs)
+# Bekçinin kendi testi gerçekçi görünen SENTETİK numaralarla tespit davranışını test eder;
+# aksi hâlde hook bu test dosyasını commit etmeyi engeller (02.09.2026 çapraz kontrol bulgusu).
+path:test/pii-bekcisi.test.ts

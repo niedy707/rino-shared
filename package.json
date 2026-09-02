@@ -11,6 +11,10 @@
       "default": "./dist/main.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",

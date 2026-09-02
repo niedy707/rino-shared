@@ -1,58 +1,96 @@
 #!/bin/bash
 #
-# @rino/shared mükerrer-tanım bekçisi — pre-commit hook.
+# @rino/shared bekçileri — pre-commit hook.
+#
+#   1. Mükerrer-tanım bekçisi (guard-duplicates.mjs)
+#   2. PII bekçisi (pii-bekcisi.mjs --staged) — gerçek telefon / TC / ad commit'e girmesin
 #
 # Neden: bekçi yalnız release.sh içinde çalışıyordu; yani calendar-api'ye yeni
 # bir kopya ekleyen biri, birisi rino-shared sürümü yayınlayana kadar hiçbir
-# uyarı almıyordu. Bu hook onu commit anına taşır (~0.2 sn).
+# uyarı almıyordu. Bu hook onu commit anına taşır (~0.2 sn). PII taraması
+# 02.09.2026'da eklendi: 5 raporun 4'ünde gerçek hasta verisi kaynak/test/belge
+# dosyalarında bulundu, biri PUBLIC repoda.
 #
 # KURULUM: rino-shared/scripts/install-hooks.sh
 # BYPASS : git commit --no-verify
 #
-# Davranış: bekçi başka bir repodaki kopyadan ötürü hata verirse commit
+# Davranış: mükerrer bekçisi başka bir repodaki kopyadan ötürü hata verirse commit
 # ENGELLENMEZ — yalnız uyarı basılır. Yalnızca BU repodaki yeni kopya engeller.
+# PII bekçisi staged içerikte eşleşme bulursa commit HER ZAMAN durur.
 
-GUARD="$HOME/Projects/rino-shared/scripts/guard-duplicates.mjs"
+RINO_SHARED="$HOME/Projects/rino-shared"
+GUARD="$RINO_SHARED/scripts/guard-duplicates.mjs"
+PII="$RINO_SHARED/scripts/pii-bekcisi.mjs"
 
 # rino-shared yoksa (başka makine / sığ klon) sessizce geç — hook asla
 # commit'i imkânsız hale getirmemeli.
-[ -f "$GUARD" ] || exit 0
+[ -d "$RINO_SHARED" ] || exit 0
 command -v node >/dev/null 2>&1 || exit 0
-
-OUT=$(node "$GUARD" 2>&1)
-RC=$?
-[ $RC -eq 0 ] && exit 0
 
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 
-# Bekçi "YENİ-KOPYA-REPOLAR: a b c" satırı basar — yalnız SAYIsı ARTAN repolar.
-# (Önceden tüm konumlar taranıyordu; calendar-api'de zaten 19 normalizeName
-#  olduğu için başka repodaki yeni kopya burada da commit'i kilitliyordu.)
-OFFENDERS=$(echo "$OUT" | sed -n 's/^YENİ-KOPYA-REPOLAR: //p')
+# ── 1. Mükerrer-tanım bekçisi ─────────────────────────────────────────────────
+if [ -f "$GUARD" ]; then
+  OUT=$(node "$GUARD" 2>&1)
+  RC=$?
+  if [ $RC -ne 0 ]; then
+    # Bekçi "YENİ-KOPYA-REPOLAR: a b c" satırı basar — yalnız SAYIsı ARTAN repolar.
+    # (Önceden tüm konumlar taranıyordu; calendar-api'de zaten 19 normalizeName
+    #  olduğu için başka repodaki yeni kopya burada da commit'i kilitliyordu.)
+    OFFENDERS=$(echo "$OUT" | sed -n 's/^YENİ-KOPYA-REPOLAR: //p')
 
-# Bekçi mükerrer DIŞI bir sebeple patladıysa (bozuk/eski baseline, script hatası)
-# o satır hiç basılmaz. Bu durumda AÇIK KALMA — sessizce devre dışı kalmış bir
-# kapı, hiç olmayan kapıdan beterdir.
-if [ -z "$OFFENDERS" ]; then
-  echo "$OUT"
-  echo
-  echo "⛔ Commit durduruldu: bekçi çalışamadı (mükerrer tanım sorunu DEĞİL)."
-  echo "   Muhtemel sebep: taban çizgisi eski biçimde ya da script hatası."
-  echo "   Onar:         node $GUARD"
-  echo "   Atlamak için: git commit --no-verify"
-  exit 1
+    # Bekçi mükerrer DIŞI bir sebeple patladıysa (bozuk/eski baseline, script hatası)
+    # o satır hiç basılmaz. Bu durumda AÇIK KALMA — sessizce devre dışı kalmış bir
+    # kapı, hiç olmayan kapıdan beterdir.
+    if [ -z "$OFFENDERS" ]; then
+      echo "$OUT"
+      echo
+      echo "⛔ Commit durduruldu: bekçi çalışamadı (mükerrer tanım sorunu DEĞİL)."
+      echo "   Muhtemel sebep: taban çizgisi eski biçimde ya da script hatası."
+      echo "   Onar:         node $GUARD"
+      echo "   Atlamak için: git commit --no-verify"
+      exit 1
+    fi
+
+    if echo " $OFFENDERS " | grep -q " ${REPO_NAME} "; then
+      echo "$OUT"
+      echo
+      echo "⛔ Commit durduruldu: bu repoda yeni mükerrer tanım var."
+      echo "   Kasıtlıysa:  node $GUARD --update"
+      echo "   Atlamak için: git commit --no-verify"
+      exit 1
+    fi
+
+    echo "$OUT"
+    echo
+    echo "⚠️  Bekçi hata verdi ama yeni kopya BAŞKA bir repoda — commit'e izin veriliyor."
+  fi
+else
+  echo "⚠️  guard-duplicates.mjs bulunamadı ($GUARD) — mükerrer taraması atlandı."
 fi
 
-if echo " $OFFENDERS " | grep -q " ${REPO_NAME} "; then
-  echo "$OUT"
-  echo
-  echo "⛔ Commit durduruldu: bu repoda yeni mükerrer tanım var."
-  echo "   Kasıtlıysa:  node $GUARD --update"
-  echo "   Atlamak için: git commit --no-verify"
-  exit 1
+# ── 2. PII bekçisi ────────────────────────────────────────────────────────────
+if [ ! -f "$PII" ]; then
+  echo "⚠️  pii-bekcisi.mjs bulunamadı ($PII) — PII taraması atlandı."
+  exit 0
 fi
 
-echo "$OUT"
+# İsim listesi yerel ve sürümlenmez; yoksa script sessizce yalnız telefon/TC tarar.
+PII_OUT=$(node "$PII" --staged --isim-listesi "$RINO_SHARED/pii-isimler.txt" 2>&1)
+PII_RC=$?
+if [ $PII_RC -eq 0 ]; then
+  exit 0
+fi
+
+echo "$PII_OUT"
 echo
-echo "⚠️  Bekçi hata verdi ama yeni kopya BAŞKA bir repoda — commit'e izin veriliyor."
-exit 0
+if [ $PII_RC -eq 1 ]; then
+  echo "⛔ Commit durduruldu: staged dosyalarda gerçek görünümlü telefon / TC / ad var."
+  echo "   Sentetik veri kullan: 0555 111 22 33 ailesi, 'Ayşe Örnek' gibi açıkça sahte adlar."
+  echo "   Yanlış pozitifse:     git commit --no-verify"
+else
+  echo "⛔ Commit durduruldu: PII bekçisi çalışamadı (rc=$PII_RC — eşleşme DEĞİL, script hatası)."
+  echo "   Onar:         node $PII --staged"
+  echo "   Atlamak için: git commit --no-verify"
+fi
+exit 1

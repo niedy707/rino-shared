@@ -42,6 +42,14 @@
       "normalizeName": 2,
       "cleanDisplayName": 1,
       "transliterateCyrillic": 1
+    },
+    "web-panel": {
+      "transliterateCyrillic": 2,
+      "normalizeName": 1,
+      "cleanDisplayName": 1
+    },
+    "insta-takip": {
+      "normalizeMobil": 1
     }
   }
 }

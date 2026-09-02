@@ -90,6 +90,34 @@ describe('calculateControlLabel — sınır değerleri', () => {
     expect(calculateControlLabel('2026-08-10', '2026-08-01')).toBe('?');
   });
 
+  it('v1.3.1 — geçersiz/boş tarih "?" döner, "NaNm" DEĞİL', () => {
+    // Önceden üçü de "NaNm" üretip panelde görünüyordu (rapor 02.09 Bulgu #3).
+    expect(calculateControlLabel('garbage', '2026-01-01')).toBe('?');
+    expect(calculateControlLabel('', '')).toBe('?');
+    expect(calculateControlLabel(undefined as unknown as string, undefined as unknown as string)).toBe('?');
+    expect(calculateControlLabel(null as unknown as string, null as unknown as string)).toBe('?');
+    expect(calculateControlLabel(new Date('x'), '2026-01-01')).toBe('?');
+    expect(calculateControlLabel('2026-01-01', 'garbage')).toBe('?');
+    expect(daysBetweenDates('garbage', '2026-01-01')).toBeNaN();
+  });
+
+  it('v1.3.1 — GG.AA.YYYY (TR biçimi) gün.ay.yıl olarak okunur', () => {
+    // V8 "08.01.2026"yı 1 Ağustos sayıyordu → 212 gün → "7m". Doğrusu 7 gün → "1w".
+    expect(calculateControlLabel('01.01.2026', '08.01.2026')).toBe('1w');
+    expect(calculateControlLabel('10.12.2025', '04.02.2026')).toBe('2m'); // JSDoc örneğinin TR biçimi
+    expect(daysBetweenDates('01.01.2026', '08.01.2026')).toBe(7);
+    expect(daysBetweenDates('1.1.2026', '8.1.2026')).toBe(7);            // tek haneli gün/ay
+    // taşan tarih (31 Şubat) sessizce Mart'a kaymaz → geçersiz
+    expect(calculateControlLabel('31.02.2026', '10.03.2026')).toBe('?');
+  });
+
+  it('v1.3.1 — ISO girdiler AYNEN eski davranışta (regresyon koruması)', () => {
+    expect(calculateControlLabel('2026-01-01', '2026-01-08')).toBe('1w');
+    expect(calculateControlLabel('2025-12-10', '2026-02-04')).toBe('2m');
+    expect(daysBetweenDates('2026-01-01T23:00:00Z', '2026-01-02T01:00:00Z')).toBe(1);
+    expect(daysBetweenDates(new Date('2026-01-01'), new Date('2026-01-08'))).toBe(7);
+  });
+
   it('3w/1m eşiği tam olarak 25→26 arasında', () => {
     // Regresyon koruması: yuvarlama formülü değişirse burası patlar
     expect(calculateControlLabel('2026-01-01', plus(25))).toBe('3w');
