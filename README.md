@@ -9,6 +9,15 @@ Tüketiciler: `calendar-api`, `clinic-sync`, `takvim`, `mobil-panel`.
 
 ---
 
+## 🗺️ Klinik iş bu projede yoksa → `KLINIK_ISLER.md`
+
+**Kural:** Klinik işleyişiyle ilgili bir iş geldiğinde önce bu projede o işi yapan araç aranır.
+Yoksa yeni kod yazmadan ve web'e çıkmadan önce ortak iş haritası okunur:
+[`~/Projects/KLINIK_ISLER.md`](../KLINIK_ISLER.md) — hangi klinik iş hangi projede, hangi komutla.
+İş başka bir klinik projenin tanımındaysa o projenin aracı kullanılır, ikincisi yazılmaz.
+Harita tek kopyadır (kökte); bu projeye kopyalanmaz. Bu projeye yeni bir iş/araç eklenirse
+haritaya da satır eklenir.
+
 ## Yüzey — 10 export
 
 | Fonksiyon | Dosya | Not |
